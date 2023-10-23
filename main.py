@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torchviz
 from torch.autograd import Variable
+import torch.nn.functional as F
+
 
 # Define a class that applies the transformer L times
 class MultiLayerTransformer(nn.Module):
@@ -35,9 +37,9 @@ class ModailitySpecificTransformer(nn.Module):
         return z1_final, z2_final
 
 
-class TempTokensFusion(nn.Module):
+class FusionTransformers(nn.Module):
     def __init__(self, input_dim, num_heads, hidden_dim, Lf, T):
-        super(TempTokensFusion, self).__init__()
+        super(FusionTransformers, self).__init__()
         self.Lf = Lf
         self.T = T
         # Adjusting the extra_tokens shape for batch_first=True
@@ -74,24 +76,48 @@ class TempTokensFusion(nn.Module):
 
 
 class AttentionBottleneckFusion(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes):
         super(AttentionBottleneckFusion, self).__init__()
+
+        # CLS tokens for each modality
+        self.cls_token1 = nn.Parameter(torch.randn(1, 1, input_dim), requires_grad=True)
+        self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim), requires_grad=True)
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModailitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
                                                                           T)
 
-        # Initialize TempTokensFusion
-        self.temp_token_fusion = TempTokensFusion(input_dim, num_heads, hidden_dim, Lf, T)
+        # Initialize FusionTransformers
+        self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
+
+        # Combining the CLS representations from both modalities for classification
+        self.classifier = nn.Linear(2*input_dim, num_classes)
 
     def forward(self, z1, z2):
+        # Concat the CLS tokens for each modality
+        cls_token1_embed = self.cls_token1.repeat(z1.size(0), 1, 1)
+        cls_token2_embed = self.cls_token2.repeat(z2.size(0), 1, 1)
+        z1 = torch.cat([cls_token1_embed, z1], dim=1)
+        z2 = torch.cat([cls_token2_embed, z2], dim=1)
+
         # Get the outputs from the modality-specific transformers
-        z1_final, z2_final = self.modality_specific_transformer(z1, z2)
+        z1, z2 = self.modality_specific_transformer(z1, z2)
 
-        # Feed the outputs to the TempTokensFusion
-        z1_out, final_tokens, z2_out = self.temp_token_fusion(z1_final, z2_final)
+        # Feed the outputs to the FusionTransformers
+        z1_out, final_tokens, z2_out = self.fusion_transformer(z1, z2)
 
-        return z1_out, final_tokens, z2_out
+        # Extracting the CLS token's representation post transformation
+        cls_representation1 = z1_out[:, 0, :]
+        cls_representation2 = z2_out[:, 0, :]
+
+        # Combining the two CLS representations
+        combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
+
+        # Classification
+        output = self.classifier(combined_cls)
+        final_class = F.softmax(output, dim=1)
+
+        return z1_out, final_tokens, z2_out, final_class
 
 
 # Example usage
@@ -110,6 +136,7 @@ if __name__ == "__main__":
     Lf = 3  # Number of iterations for the TempTokensFusion
     batch_size = 32
     sequence_length = 10
+    num_classes = 5
 
     # Generate sample inputs
     z1 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 1
@@ -120,22 +147,23 @@ if __name__ == "__main__":
     z2 = Variable(z2, requires_grad=True)
 
     # Instantiate model
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T)
+    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes)
 
     # Get outputs
-    z1_out, final_tokens, z2_out = model(z1, z2)
+    z1_out, final_tokens, z2_out , predicted_class = model(z1, z2)
 
     # Combine the outputs into a single tuple
     combined_outputs = (z1_out, final_tokens, z2_out)
 
     # Create the graph using torchviz
-    dot = torchviz.make_dot(combined_outputs, params=dict(list(model.named_parameters()) + [('z1', z1), ('z2', z2)]))
+    # dot = torchviz.make_dot(combined_outputs, params=dict(list(model.named_parameters()) + [('z1', z1), ('z2', z2)]))
 
     # Display the graph
-    dot.view()
+    # dot.view()
 
 
     # Print shapes to check
     print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
     print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
     print(z2_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
+    print(predicted_class.shape)  # Expected: (batch_size, num_classes)
