@@ -134,6 +134,7 @@ if __name__ == "__main__":
     # Display the graph
     dot.view()
 
+
     # Print shapes to check
     print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
     print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
