@@ -166,4 +166,4 @@ if __name__ == "__main__":
     print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
     print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
     print(z2_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
-    print(predicted_class.shape)  # Expected: (batch_size, num_classes)
+    print(predicted_class.shape)  #     Expected: (batch_size, num_classes)
