@@ -119,51 +119,51 @@ class AttentionBottleneckFusion(nn.Module):
 
         return z1_out, final_tokens, z2_out, final_class
 
-
-# Example usage
-if __name__ == "__main__":
-    import torch
-    import torch.nn as nn
-
-    # [ ... Insert your class definitions here ... ]
-
-    # Initialize parameters
-    input_dim = 512  # Token embedding dimension
-    hidden_dim = 2048  # Dimension of the inner feedforward network
-    num_heads = 8  # Number of attention heads
-    num_layers = [6, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
-    T = 5  # Number of extra tokens
-    Lf = 3  # Number of iterations for the TempTokensFusion
-    batch_size = 32
-    sequence_length = 10
-    num_classes = 5
-
-    # Generate sample inputs
-    z1 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 1
-    z2 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 2
-
-    # Make them variables to compute the graph
-    z1 = Variable(z1, requires_grad=True)
-    z2 = Variable(z2, requires_grad=True)
-
-    # Instantiate model
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes)
-
-    # Get outputs
-    z1_out, final_tokens, z2_out , predicted_class = model(z1, z2)
-
-    # Combine the outputs into a single tuple
-    combined_outputs = (z1_out, final_tokens, z2_out)
-
-    # Create the graph using torchviz
-    # dot = torchviz.make_dot(combined_outputs, params=dict(list(model.named_parameters()) + [('z1', z1), ('z2', z2)]))
-
-    # Display the graph
-    # dot.view()
-
-
-    # Print shapes to check
-    print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
-    print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
-    print(z2_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
-    print(predicted_class.shape)  #     Expected: (batch_size, num_classes)
+# 
+# # Example usage
+# if __name__ == "__main__":
+#     import torch
+#     import torch.nn as nn
+# 
+#     # [ ... Insert your class definitions here ... ]
+# 
+#     # Initialize parameters
+#     input_dim = 512  # Token embedding dimension
+#     hidden_dim = 2048  # Dimension of the inner feedforward network
+#     num_heads = 8  # Number of attention heads
+#     num_layers = [6, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
+#     T = 5  # Number of extra tokens
+#     Lf = 3  # Number of iterations for the TempTokensFusion
+#     batch_size = 32
+#     sequence_length = 10
+#     num_classes = 5
+# 
+#     # Generate sample inputs
+#     z1 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 1
+#     z2 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 2
+# 
+#     # Make them variables to compute the graph
+#     z1 = Variable(z1, requires_grad=True)
+#     z2 = Variable(z2, requires_grad=True)
+# 
+#     # Instantiate model
+#     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes)
+# 
+#     # Get outputs
+#     z1_out, final_tokens, z2_out , predicted_class = model(z1, z2)
+# 
+#     # Combine the outputs into a single tuple
+#     combined_outputs = (z1_out, final_tokens, z2_out)
+# 
+#     # Create the graph using torchviz
+#     # dot = torchviz.make_dot(combined_outputs, params=dict(list(model.named_parameters()) + [('z1', z1), ('z2', z2)]))
+# 
+#     # Display the graph
+#     # dot.view()
+# 
+# 
+#     # Print shapes to check
+#     print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
+#     print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
+#     print(z2_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
+#     print(predicted_class.shape)  #     Expected: (batch_size, num_classes)
