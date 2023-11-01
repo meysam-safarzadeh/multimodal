@@ -4,6 +4,7 @@ import torch.nn as nn
 import torchviz
 from torch.autograd import Variable
 import torch.nn.functional as F
+from torch.nn import init
 
 
 # Define a class that applies the transformer L times
@@ -24,9 +25,9 @@ class MultiLayerTransformer(nn.Module):
 
 # Define a class that applies the MultiLayerModalityTransformer to two modalities
 # and concatenates the results with T additional tokens in between
-class ModailitySpecificTransformer(nn.Module):
+class ModalitySpecificTransformer(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T):
-        super(ModailitySpecificTransformer, self).__init__()
+        super(ModalitySpecificTransformer, self).__init__()
         self.modality1_transformer = MultiLayerTransformer(input_dim, hidden_dim, num_heads, num_layers[0])
         self.modality2_transformer = MultiLayerTransformer(input_dim, hidden_dim, num_heads, num_layers[1])
 
@@ -42,8 +43,9 @@ class FusionTransformers(nn.Module):
         super(FusionTransformers, self).__init__()
         self.Lf = Lf
         self.T = T
-        # Adjusting the extra_tokens shape for batch_first=True
-        self.extra_tokens = nn.Parameter(torch.randn(1, T, input_dim), requires_grad=True)
+        # Adjusting the bottleneck tokens shape for batch_first=True
+        self.bottleneck_tokens = nn.Parameter(torch.empty(1, T, input_dim), requires_grad=True)
+        init.normal_(self.bottleneck_tokens, mean=0, std=0.02)
 
         self.layers_modality1 = self._get_layers(input_dim, num_heads, hidden_dim, Lf)
         self.layers_modality2 = self._get_layers(input_dim, num_heads, hidden_dim, Lf)
@@ -55,8 +57,8 @@ class FusionTransformers(nn.Module):
 
     def forward(self, z1, z2):
         # Adjusting concatenation for batch_first=True
-        # Repeat extra tokens for the batch size
-        temp_tokens1 = temp_tokens2 = self.extra_tokens.repeat(z1.size(0), 1, 1)
+        # Repeat Bottleneck tokens for the batch size
+        temp_tokens1 = temp_tokens2 = self.bottleneck_tokens.repeat(z1.size(0), 1, 1)
 
         for i in range(self.Lf):
             z1 = torch.cat((z1, temp_tokens1), dim=1)
@@ -84,8 +86,8 @@ class AttentionBottleneckFusion(nn.Module):
         self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim), requires_grad=True)
 
         # Initialize ModalitySpecificTransformer
-        self.modality_specific_transformer = ModailitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
-                                                                          T)
+        self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
+                                                                         T)
 
         # Initialize FusionTransformers
         self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
@@ -132,7 +134,7 @@ class AttentionBottleneckFusion(nn.Module):
 #     hidden_dim = 2048  # Dimension of the inner feedforward network
 #     num_heads = 8  # Number of attention heads
 #     num_layers = [6, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
-#     T = 5  # Number of extra tokens
+#     T = 5  # Number of bottleneck tokens
 #     Lf = 3  # Number of iterations for the TempTokensFusion
 #     batch_size = 32
 #     sequence_length = 10
