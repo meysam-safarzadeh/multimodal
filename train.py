@@ -7,14 +7,16 @@ import os
 import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
+
+
 # from your_dataset import YourDataset  # Replace with your actual dataset import
 
 
 class RandomDataset(Dataset):
-    def __init__(self, size, length, input_dim, num_classes=5):
+    def __init__(self, size, sequence_length, input_dim, num_classes=5):
         self.len = size
-        self.data1 = torch.randn(size, length, input_dim)
-        self.data2 = torch.randn(size, length, input_dim)
+        self.data1 = torch.randn(size, sequence_length, input_dim)
+        self.data2 = torch.randn(size, sequence_length, input_dim)
         self.labels = torch.randint(0, num_classes, (size,))
 
     def __getitem__(self, index):
@@ -22,6 +24,7 @@ class RandomDataset(Dataset):
 
     def __len__(self):
         return self.len
+
 
 def plot_loss(train_loss, val_loss, save_path):
     plt.figure(figsize=(10, 5))
@@ -44,62 +47,88 @@ def save_checkpoint(state, is_best, checkpoint_folder='checkpoints/', filename='
 def train(train_loader, model, criterion, optimizer, device, verbose, epoch, numEpochs, batch_size, train_size):
     model.train()
     running_loss = 0.0
+    correct = 0
+    total = 0
+    for i, (z1, z2, labels) in enumerate(train_loader, 0):
+        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
 
-    for i, data in enumerate(train_loader, 0):
-        inputs, labels = data
-        inputs, labels = inputs.to(device), labels.to(device)
-
+        # Zero the parameter gradients
         optimizer.zero_grad()
 
-        outputs = model(inputs)
+        # Forward + Backward + Optimize
+        _, _, _, outputs = model(z1, z2)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-
         running_loss += loss.item()
-        if verbose and i % 100 == 99:
-            print(f'[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 100:.3f}')
-            running_loss = 0.0
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
 
-    return running_loss / (train_size // batch_size)
+    train_loss = running_loss / len(train_loader)
+    accuracy = 100 * correct / total
+
+    # Print average loss and accuracy for the epoch
+    if verbose:
+        print('Epoch [%d/%d], Train Loss: %.4f, Accuracy: %.3f %%' %
+              (epoch + 1, numEpochs, train_loss, accuracy))
+
+    return train_loss, accuracy
 
 
 def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_size, val_size):
     model.eval()
     running_loss = 0.0
+    correct = 0
+    total = 0
     with torch.no_grad():
-        for i, data in enumerate(val_loader, 0):
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            outputs = model(inputs)
+        for i, (z1, z2, labels) in enumerate(val_loader, 0):
+            z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
+            _, _, _, outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
 
-    return running_loss / (val_size // batch_size)
+    val_loss = running_loss / len(val_loader)
+    accuracy = 100 * correct / total
+
+    if verbose:
+        print('Validation Loss: %.3f' % val_loss)
+        print('Accuracy of the network on the validation data: %d %%' % accuracy)
+
+    return val_loss, accuracy
 
 
 def test(test_loader, model, criterion, device, verbose):
     model.eval()
-    test_loss = 0.0
+    running_loss = 0.0
     correct = 0
     total = 0
     with torch.no_grad():
-        for data in test_loader:
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
+        for z1, z2, labels in test_loader:
+            z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+            _, _, _, outputs = model(z1, z2)
             loss = criterion(outputs, labels)
-            test_loss += loss.item()
+            running_loss += loss.item()
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
-    print('Accuracy of the network on the test data: %d %%' % (100 * correct / total))
+
+    test_loss = running_loss / len(test_loader)
+    accuracy = 100 * correct / total
+
+    if verbose:
+        print('Test Loss: {:.4f}, Test Accuracy: {:.2f}%'.format(test_loss, accuracy))
+
+    return test_loss, accuracy
 
 
 def main():
     # Initialize parameters and data
-    input_dim = 512
+    verbose = False
+    input_dim = 32
     hidden_dim = 2048
     num_heads = 8
     num_layers = [6, 4]
@@ -107,9 +136,9 @@ def main():
     Lf = 3
     num_classes = 5
     batch_size = 32
-    sequence_length = 10
+    sequence_length = 7
     learning_rate = 0.001
-    num_epochs = 100
+    num_epochs = 2
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize datasets and dataloaders
@@ -130,10 +159,11 @@ def main():
     val_losses = []
     best_val_loss = float('inf')
     for epoch in range(num_epochs):
-        train_loss = train(train_loader, model, criterion, optimizer, device, True, epoch, num_epochs, batch_size,
+        train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
-        val_loss = val(val_loader, model, criterion, device, True, epoch, num_epochs, batch_size, len(val_dataset))
-        print(f'Epoch {epoch + 1}/{num_epochs}, Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
+        val_loss, val_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
+              f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
