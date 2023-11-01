@@ -132,13 +132,13 @@ def main():
     hidden_dim = 2048
     num_heads = 8
     num_layers = [6, 4]
-    T = 5
+    B = 5 # Number of bottleneck tokens
     Lf = 3
     num_classes = 5
     batch_size = 32
     sequence_length = 7
     learning_rate = 0.001
-    num_epochs = 2
+    num_epochs = 15
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize datasets and dataloaders
@@ -150,7 +150,7 @@ def main():
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize model, loss function, and optimizer
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes).to(device)
+    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
