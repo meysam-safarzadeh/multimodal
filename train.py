@@ -138,8 +138,9 @@ def main():
     batch_size = 32
     sequence_length = 7
     learning_rate = 0.001
-    num_epochs = 15
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    num_epochs = 2
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = 'cpu'
 
     # Initialize datasets and dataloaders
     train_dataset = RandomDataset(1000, sequence_length, input_dim)
