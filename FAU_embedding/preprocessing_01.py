@@ -26,7 +26,7 @@ def sort_key(filename):
 
 
 # Replace 'your_directory_path' with the path of your directory
-directory_path = '/media/meysam/NewVolume/MintPain_dataset/cropped_face/sub20'
+directory_path = '/media/meysam/NewVolume/MintPain_dataset/cropped_face/sub02'
 
 # List to hold file paths
 file_paths = []
@@ -42,7 +42,7 @@ for root, dirs, files in os.walk(directory_path):
 file_paths_sorted = sorted(file_paths, key=lambda f: sort_key(os.path.basename(f)))
 
 # Specify the full path to the CSV file
-csv_file_path = '/media/meysam/NewVolume/MintPain_dataset/processed_openface/sub20.csv'  # Replace with your actual file path
+csv_file_path = '/media/meysam/NewVolume/MintPain_dataset/processed_openface/sub02.csv'  # Replace with your actual file path
 
 # List of columns to keep
 columns_to_keep = [
