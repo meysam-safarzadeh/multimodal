@@ -47,8 +47,8 @@ def save_best_model(model, current_val_loss=None, current_val_acc=None, best_val
     tuple: Updated best validation loss and best validation accuracy.
     """
     current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    model_path_loss = f'models/best_model_loss_{current_time}.pth'
-    model_path_acc = f'models/best_model_acc_{current_time}.pth'
+    model_path_loss = f'checkpoints/best_model_loss_{current_time}.pth'
+    model_path_acc = f'checkpoints/best_model_acc_{current_time}.pth'
 
     # Save the model if it has the best validation loss so far
     if current_val_loss is not None and current_val_loss < best_val_loss:

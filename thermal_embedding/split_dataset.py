@@ -24,6 +24,7 @@ VAL_IMAGE_TRANSFORMS = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
 ])
 
+
 def read_indices_from_csv(csv_file, iteration):
     with open(csv_file, mode='r') as file:
         csv_reader = csv.DictReader(file)
