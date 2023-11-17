@@ -5,11 +5,22 @@ import torchviz
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.nn import init
+import math
+
+
+class PoolingReducer(nn.Module):
+    def __init__(self, output_dim):
+        super(PoolingReducer, self).__init__()
+        self.pool = nn.AdaptiveMaxPool1d(output_dim)
+
+    def forward(self, x):
+        reduced = self.pool(x)
+        return reduced
 
 
 # Define a class that applies the transformer L times
 class MultiLayerTransformer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, output_dim=None):
         super(MultiLayerTransformer, self).__init__()
 
         # Define a single transformer encoder layer with batch_first=True
@@ -18,9 +29,13 @@ class MultiLayerTransformer(nn.Module):
 
         # Stack num_layers of these layers to form the complete transformer encoder
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
+        self.output_dim = output_dim
 
     def forward(self, z):
-        return self.transformer_encoder(z)
+        z = self.transformer_encoder(z)
+        if self.output_dim is not None:
+            z = PoolingReducer(self.output_dim)(z)
+        return z
 
 
 # Define a class that applies the MultiLayerModalityTransformer to two modalities
@@ -28,8 +43,8 @@ class MultiLayerTransformer(nn.Module):
 class ModalitySpecificTransformer(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T):
         super(ModalitySpecificTransformer, self).__init__()
-        self.modality1_transformer = MultiLayerTransformer(input_dim, hidden_dim, num_heads, num_layers[0])
-        self.modality2_transformer = MultiLayerTransformer(input_dim, hidden_dim, num_heads, num_layers[1])
+        self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim, num_heads, num_layers[0])
+        self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim, num_heads, num_layers[1], input_dim[0])
 
     def forward(self, z1, z2):
         z1_final = self.modality1_transformer(z1)
@@ -44,11 +59,11 @@ class FusionTransformers(nn.Module):
         self.Lf = Lf
         self.T = B
         # Adjusting the bottleneck tokens shape for batch_first=True
-        self.bottleneck_tokens = nn.Parameter(torch.empty(1, B, input_dim), requires_grad=True)
+        self.bottleneck_tokens = nn.Parameter(torch.empty(1, B, input_dim[0]), requires_grad=True)
         init.normal_(self.bottleneck_tokens, mean=0, std=0.02)
 
-        self.layers_modality1 = self._get_layers(input_dim, num_heads, hidden_dim, Lf)
-        self.layers_modality2 = self._get_layers(input_dim, num_heads, hidden_dim, Lf)
+        self.layers_modality1 = self._get_layers(input_dim[0], num_heads, hidden_dim, Lf)
+        self.layers_modality2 = self._get_layers(input_dim[0], num_heads, hidden_dim, Lf)
 
     def _get_layers(self, input_dim, num_heads, hidden_dim, Lf):
         encoder_layer = nn.TransformerEncoderLayer(d_model=input_dim, nhead=num_heads, dim_feedforward=hidden_dim,
@@ -77,10 +92,6 @@ class FusionTransformers(nn.Module):
         return z1, final_tokens, z2
 
 
-import torch
-import math
-
-
 def positional_encoding(sequence_length, d_model):
     """Compute the sinusoidal positional encoding for a batch of sequences."""
     # Initialize a matrix to store the positional encodings
@@ -103,12 +114,12 @@ class AttentionBottleneckFusion(nn.Module):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
-        self.cls_token1 = nn.Parameter(torch.randn(1, 1, input_dim), requires_grad=True)
-        self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim), requires_grad=True)
+        self.cls_token1 = nn.Parameter(torch.randn(1, 1, input_dim[0]), requires_grad=True)
+        self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim[1]), requires_grad=True)
 
         # Positional encodings
-        self.positional_encodings1 = positional_encoding(max_seq_length, input_dim)
-        self.positional_encodings2 = positional_encoding(max_seq_length, input_dim)
+        self.positional_encodings1 = positional_encoding(max_seq_length, input_dim[0])
+        self.positional_encodings2 = positional_encoding(max_seq_length, input_dim[1])
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
@@ -118,7 +129,7 @@ class AttentionBottleneckFusion(nn.Module):
         self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
 
         # Combining the CLS representations from both modalities for classification
-        self.classifier = nn.Linear(2*input_dim, num_classes)
+        self.classifier = nn.Linear(2*input_dim[0], num_classes)
 
     def forward(self, z1, z2):
         # Concat the CLS tokens for each modality

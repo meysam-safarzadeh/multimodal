@@ -7,16 +7,14 @@ import os
 import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
-
-
-# from your_dataset import YourDataset  # Replace with your actual dataset import
+from data_loader import create_dataloader
 
 
 class RandomDataset(Dataset):
     def __init__(self, size, sequence_length, input_dim, num_classes=5):
         self.len = size
-        self.data1 = torch.randn(size, sequence_length, input_dim)
-        self.data2 = torch.randn(size, sequence_length, input_dim)
+        self.data1 = torch.randn(size, sequence_length, input_dim[0])
+        self.data2 = torch.randn(size, sequence_length, input_dim[1])
         self.labels = torch.randint(0, num_classes, (size,))
 
     def __getitem__(self, index):
@@ -128,25 +126,31 @@ def test(test_loader, model, criterion, device, verbose):
 def main():
     # Initialize parameters and data
     verbose = False
-    input_dim = 32
-    hidden_dim = 2048
-    num_heads = 8
-    num_layers = [6, 4]
+    input_dim = [22, 512]
+    hidden_dim = 1024
+    num_heads = 2
+    num_layers = [4, 6]
     B = 5 # Number of bottleneck tokens
     Lf = 3
     num_classes = 5
     batch_size = 32
     sequence_length = 7
-    learning_rate = 0.001
-    num_epochs = 2
+    learning_rate = 0.01
+    num_epochs = 5
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = 'cpu'
 
     # Initialize datasets and dataloaders
+    # Paths to your files
+    fau_file_path = 'FAU_embedding/uniform_sampled_FAU_embeddings.csv'
+    npz_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames.npz'
+
+    # Create the DataLoader
+    train_loader = create_dataloader(fau_file_path, npz_file_path, batch_size, shuffle=True)
+
     train_dataset = RandomDataset(1000, sequence_length, input_dim)
     val_dataset = RandomDataset(200, sequence_length, input_dim)
     test_dataset = RandomDataset(200, sequence_length, input_dim)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
