@@ -59,11 +59,10 @@ def main():
                 print(f"Processed {idx + 1}/{len(dataset)} images")
 
     # Save the embeddings and filenames in a single NumPy .npz file
-    np.savez_compressed('embeddings_and_filenames.npz', embeddings=np.concatenate(embeddings, axis=0),
+    np.savez_compressed('Thermal_embeddings_and_filenames.npz', embeddings=np.concatenate(embeddings, axis=0),
                         filenames=filenames)
 
     print("Embeddings and filenames saved in a single NumPy file.")
-
 
 
 class ModifiedModel(torch.nn.Module):
