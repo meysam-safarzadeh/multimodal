@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 
-class FAUDataset(Dataset):
+class MintPainDataset(Dataset):
     def __init__(self, dataframe, npz_file_path):
         """
         Initialize the dataset with FAU dataframe and thermal embeddings.
@@ -60,7 +60,7 @@ class FAUDataset(Dataset):
 
 def create_dataloader(fau_file_path, npz_file_path, batch_size=64, shuffle=True):
     """
-    Create a DataLoader for the FAU and thermal embeddings dataset.
+    Create a DataLoader for the FAU and thermal embeddings' dataset.
 
     Args:
     fau_file_path (str): Path to the CSV file containing FAU embeddings.
@@ -72,7 +72,7 @@ def create_dataloader(fau_file_path, npz_file_path, batch_size=64, shuffle=True)
     DataLoader: The DataLoader for the combined dataset.
     """
     df = pd.read_csv(fau_file_path)
-    dataset = FAUDataset(df, npz_file_path)
+    dataset = MintPainDataset(df, npz_file_path)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
     return dataloader
 
