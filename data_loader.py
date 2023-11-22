@@ -5,28 +5,28 @@ import pandas as pd
 
 
 class MintPainDataset(Dataset):
-    def __init__(self, dataframe, thermal_file_path):
+    def __init__(self, fau_dataframe, thermal_file_path):
         """
-        Initialize the dataset with FAU dataframe and thermal embeddings.
+        Initialize the dataset with FAU FAU_dataframe and thermal embeddings.
 
         Args:
-            dataframe (DataFrame): DataFrame containing FAU embeddings.
+            fau_dataframe (DataFrame): DataFrame containing FAU embeddings.
             thermal_file_path (str): Path to .npz file with Thermal embeddings.
         """
         # FAU embeddings
-        self.dataframe = dataframe
-        self.groups = dataframe.groupby(['sub', 'trial', 'sweep', 'label']).groups
+        self.FAU_dataframe = fau_dataframe
+        self.sequences = fau_dataframe.groupby(['sub', 'trial', 'sweep', 'label']).groups
 
         # Thermal embeddings
-        npz_data = np.load(thermal_file_path)
-        self.thermal_embeddings = {filename: embedding for filename, embedding in zip(npz_data['filenames'], npz_data['embeddings'])}
+        thermal_data = np.load(thermal_file_path)
+        self.thermal_embeddings = {filename: embedding for filename, embedding in zip(thermal_data['filenames'], thermal_data['embeddings'])}
 
     def __len__(self):
-        return len(self.groups)
+        return len(self.sequences)
 
     def __getitem__(self, idx):
-        indices = self.groups[list(self.groups)[idx]]
-        data = self.dataframe.iloc[indices]
+        indices = self.sequences[list(self.sequences)[idx]]
+        data = self.FAU_dataframe.iloc[indices]
 
         fau_embeddings = self._get_fau_embeddings(data)
         thermal_embeddings = self._get_thermal_embeddings(data['file name'])

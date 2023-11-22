@@ -136,18 +136,18 @@ def main():
     batch_size = 32
     sequence_length = 7
     learning_rate = 0.01
-    num_epochs = 5
+    num_epochs = 1
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = 'cpu'
 
     # Initialize datasets and dataloaders
     # Paths to your files
     fau_file_path = 'FAU_embedding/uniform_sampled_FAU_embeddings.csv'
-    npz_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames.npz'
+    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames.npz'
     split_file_path = 'cross_validation_split.csv'
 
     # Create the DataLoader
-    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, npz_file_path, split_file_path, iteration=0, batch_size=batch_size)
+    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration=0, batch_size=batch_size)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
