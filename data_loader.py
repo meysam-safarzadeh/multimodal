@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 import torch
 import numpy as np
 import pandas as pd
@@ -60,23 +60,41 @@ class MintPainDataset(Dataset):
         return embeddings
 
 
-def create_dataloader(fau_file_path, thermal_file_path, batch_size=64, shuffle=True):
+def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size=64):
     """
-    Create a DataLoader for the FAU and thermal embeddings' dataset.
+    Create dataset for the FAU and thermal embeddings' dataset, split into train, validation, and test sets for
+    the given iteration.
 
     Args:
     fau_file_path (str): Path to the CSV file containing FAU embeddings.
     thermal_file_path (str): Path to the NPZ file containing thermal embeddings.
+    split_file_path (str): Path to the CSV file containing split information.
+    iteration (int): The iteration number to select the split.
     batch_size (int, optional): Batch size for the DataLoader. Defaults to 64.
-    shuffle (bool, optional): Whether to shuffle the data. Defaults to True.
 
     Returns:
-    DataLoader: The DataLoader for the combined dataset.
+    tuple: A tuple containing the train, validation, and test DataLoaders.
     """
+    # Read the datasets
     df = pd.read_csv(fau_file_path)
-    dataset = MintPainDataset(df, thermal_file_path)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-    return dataloader
+    split_df = pd.read_csv(split_file_path)
+
+    # Extract the split information for the given iteration
+    train_subjects = np.int16(split_df.loc[split_df['Iteration'] == iteration, 'Training'].values[0].split(','))
+    val_subjects = np.int16(split_df.loc[split_df['Iteration'] == iteration, 'Validation'].values[0].split(','))
+    test_subjects = np.int16(split_df.loc[split_df['Iteration'] == iteration, 'Test'].values[0].split(','))
+
+    # Split the dataset
+    train_df = df[df['sub'].isin(train_subjects)].reset_index(drop=True)
+    val_df = df[df['sub'].isin(val_subjects)].reset_index(drop=True)
+    test_df = df[df['sub'].isin(test_subjects)].reset_index(drop=True)
+
+    # Create subsets
+    train_dataset = MintPainDataset(train_df, thermal_file_path)
+    val_dataset = MintPainDataset(val_df, thermal_file_path)
+    test_dataset = MintPainDataset(test_df, thermal_file_path)
+
+    return train_dataset, val_dataset, test_dataset
 
 # for i, (fau_emb, thermal_emb, labels) in enumerate(dataloader):
 #     print(f"Batch {i}: Shapes - FAU: {fau_emb.shape}, Thermal: {thermal_emb.shape}, Labels: {labels.shape}")
