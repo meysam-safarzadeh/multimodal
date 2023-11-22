@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
-from data_loader import create_dataset
+from mint_pain_dataset_creator import create_dataset
 
 
 class RandomDataset(Dataset):
