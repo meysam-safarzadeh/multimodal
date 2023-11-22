@@ -26,12 +26,12 @@ class MintPainDataset(Dataset):
 
     def __getitem__(self, idx):
         indices = self.sequences[list(self.sequences)[idx]]
-        data = self.FAU_dataframe.iloc[indices]
+        fau_data = self.FAU_dataframe.iloc[indices]
 
-        fau_embeddings = self._get_fau_embeddings(data)
-        thermal_embeddings = self._get_thermal_embeddings(data['file name'])
+        fau_embeddings = self._get_fau_embeddings(fau_data)
+        thermal_embeddings = self._get_thermal_embeddings(fau_data['file name'])
 
-        label = torch.tensor(data.iloc[0]['label'], dtype=torch.long)
+        label = torch.tensor(fau_data.iloc[0]['label'], dtype=torch.long)
 
         return fau_embeddings, thermal_embeddings, label
 
