@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset
 import torch
 import numpy as np
 import pandas as pd
@@ -44,7 +44,7 @@ class MintPainDataset(Dataset):
         fau_embeddings = data.iloc[:, 1:fau_features+1].values
         # Apply min-max normalization and scale to -1 to 1
         fau_embeddings = 2 * ((fau_embeddings - self.fau_min_vals) / (self.fau_max_vals - self.fau_min_vals)) - 1
-        fau_embeddings = self._pad_embeddings(fau_embeddings, fau_features)
+        fau_embeddings = self._pad_embeddings(fau_embeddings)
         return torch.tensor(fau_embeddings, dtype=torch.float32)
 
     def _get_thermal_embeddings(self, filenames):
@@ -54,10 +54,10 @@ class MintPainDataset(Dataset):
         # Apply min-max normalization and scale to -1 to 1
         thermal_embeddings = 2 * ((thermal_embeddings - self.thermal_min_vals) / (
                     self.thermal_max_vals - self.thermal_min_vals)) - 1
-        thermal_embeddings = self._pad_embeddings(thermal_embeddings, thermal_embedding_size, axis=1)
+        thermal_embeddings = self._pad_embeddings(thermal_embeddings, axis=1)
         return torch.tensor(thermal_embeddings, dtype=torch.float32)
 
-    def _pad_embeddings(self, embeddings, num_features, axis=1):
+    def _pad_embeddings(self, embeddings, axis=1):
         max_samples = 7
         if embeddings.shape[axis] < max_samples:
             print(f"Padding embeddings from shape {embeddings.shape} to {max_samples} samples")
