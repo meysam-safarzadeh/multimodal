@@ -5,7 +5,7 @@ import pandas as pd
 
 
 class MintPainDataset(Dataset):
-    def __init__(self, fau_dataframe, thermal_file_path):
+    def __init__(self, fau_dataframe, thermal_file_path, fau_min_max_vals, thermal_min_max_vals):
         """
         Initialize the dataset with FAU FAU_dataframe and thermal embeddings.
 
@@ -20,6 +20,10 @@ class MintPainDataset(Dataset):
         # Thermal embeddings
         thermal_data = np.load(thermal_file_path)
         self.thermal_embeddings = {filename: embedding for filename, embedding in zip(thermal_data['filenames'], thermal_data['embeddings'])}
+
+        # Min and max values for each modality
+        self.fau_min_vals, self.fau_max_vals = fau_min_max_vals
+        self.thermal_min_vals, self.thermal_max_vals = thermal_min_max_vals
 
     def __len__(self):
         return len(self.sequences)
@@ -38,6 +42,8 @@ class MintPainDataset(Dataset):
     def _get_fau_embeddings(self, data):
         fau_features = 22
         fau_embeddings = data.iloc[:, 1:fau_features+1].values
+        # Apply min-max normalization and scale to -1 to 1
+        fau_embeddings = 2 * ((fau_embeddings - self.fau_min_vals) / (self.fau_max_vals - self.fau_min_vals)) - 1
         fau_embeddings = self._pad_embeddings(fau_embeddings, fau_features)
         return torch.tensor(fau_embeddings, dtype=torch.float32)
 
@@ -45,6 +51,9 @@ class MintPainDataset(Dataset):
         thermal_embedding_size = 512
         thermal_embeddings = [self.thermal_embeddings.get(filename, np.zeros(thermal_embedding_size)) for filename in filenames]
         thermal_embeddings = np.array(thermal_embeddings)
+        # Apply min-max normalization and scale to -1 to 1
+        thermal_embeddings = 2 * ((thermal_embeddings - self.thermal_min_vals) / (
+                    self.thermal_max_vals - self.thermal_min_vals)) - 1
         thermal_embeddings = self._pad_embeddings(thermal_embeddings, thermal_embedding_size, axis=1)
         return torch.tensor(thermal_embeddings, dtype=torch.float32)
 
@@ -73,7 +82,7 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     batch_size (int, optional): Batch size for the DataLoader. Defaults to 64.
 
     Returns:
-    tuple: A tuple containing the train, validation, and test DataLoaders.
+    tuple: A tuple containing the train, validation, and test Datasets.
     """
     # Read the datasets
     df = pd.read_csv(fau_file_path)
@@ -89,12 +98,49 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     val_df = df[df['sub'].isin(val_subjects)].reset_index(drop=True)
     test_df = df[df['sub'].isin(test_subjects)].reset_index(drop=True)
 
+    # Get min and max values for each modality
+    fau_min_max_vals, thermal_min_max_vals = get_min_max_for_each_modality(train_df, thermal_file_path)
+
     # Create subsets
-    train_dataset = MintPainDataset(train_df, thermal_file_path)
-    val_dataset = MintPainDataset(val_df, thermal_file_path)
-    test_dataset = MintPainDataset(test_df, thermal_file_path)
+    train_dataset = MintPainDataset(train_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
+    val_dataset = MintPainDataset(val_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
+    test_dataset = MintPainDataset(test_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
 
     return train_dataset, val_dataset, test_dataset
+
+
+def get_min_max_for_each_modality(train_df, thermal_file_path):
+    """
+    Extract corresponding thermal samples based on 'file name' and calculate min-max for each modality.
+
+    Args:
+        train_df (DataFrame): DataFrame containing FAU embeddings and 'file name' column.
+        thermal_file_path (str): Path to the NPZ file containing thermal embeddings.
+
+    Returns:
+        tuple of tuples: A tuple containing two tuples, first with min and max values for FAU data,
+                         and second with min and max values for thermal data.
+    """
+    # Load thermal data
+    thermal_data = np.load(thermal_file_path)
+    thermal_embeddings_dict = {filename: embedding for filename, embedding in zip(thermal_data['filenames'], thermal_data['embeddings'])}
+
+    # Extract corresponding thermal samples
+    thermal_samples = np.array([thermal_embeddings_dict[fname] for fname in train_df['file name'] if fname in thermal_embeddings_dict])
+
+    # Assuming you want to include columns from 1 to 23 (excluding the first column at index 0)
+    fau_min_vals = train_df.iloc[:, 1:23].min()
+    fau_max_vals = train_df.iloc[:, 1:23].max()
+    # Convert to numpy arrays and reshape to (1, 22)
+    fau_min_vals = np.array(fau_min_vals).reshape(1, -1)
+    fau_max_vals = np.array(fau_max_vals).reshape(1, -1)
+
+    # Calculate min and max for Thermal data
+    thermal_min_vals = thermal_samples.min(axis=0)
+    thermal_max_vals = thermal_samples.max(axis=0)
+
+    return (fau_min_vals, fau_max_vals), (thermal_min_vals, thermal_max_vals)
+
 
 # for i, (fau_emb, thermal_emb, labels) in enumerate(dataloader):
 #     print(f"Batch {i}: Shapes - FAU: {fau_emb.shape}, Thermal: {thermal_emb.shape}, Labels: {labels.shape}")
