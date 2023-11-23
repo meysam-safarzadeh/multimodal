@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
-from utils import class_wise_accuracy
+from utils import class_wise_accuracy, plot_accuracy
 
 
 class RandomDataset(Dataset):
@@ -152,8 +152,8 @@ def main():
     num_classes = 5
     batch_size = 64
     sequence_length = 7
-    learning_rate = 1e-6
-    num_epochs = 10
+    learning_rate = 1e-4
+    num_epochs = 2
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -178,17 +178,21 @@ def main():
     # Training loop
     train_losses = []
     val_losses = []
+    train_acces = []
+    val_acces = []
     best_val_loss = float('inf')
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
-        val_loss, val_acc , class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
+        val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
         print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
               f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
         print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
+        train_acces.append(train_acc)
+        val_acces.append(val_acc)
 
         # Save checkpoints
         is_best = val_loss < best_val_loss
@@ -204,8 +208,9 @@ def main():
     # Test the model
     # test(test_loader, model, criterion, device, True)
 
-    # Plot loss curves
-    # plot_loss(train_losses, val_losses, 'loss_curve.png')
+    # Plot loss & acc curves
+    plot_loss(train_losses, val_losses, 'loss_curve.png')
+    plot_accuracy(train_acces, val_acces, 'accuracy_curve.png')
 
 
 if __name__ == '__main__':

@@ -2,6 +2,7 @@ from sklearn.metrics import confusion_matrix
 import numpy as np
 import torch
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def class_wise_accuracy(outputs, labels, num_classes):
@@ -43,7 +44,7 @@ def under_sampling(df):
 
         # Sample 1/4 of these groups to keep
         groups_to_keep = np.random.choice(label_0_group_indices.unique(),
-                                          size=int(len(label_0_group_indices.unique()) * 0.25), replace=False)
+                                          size=int(len(label_0_group_indices.unique()) * 0.29), replace=False)
 
         # Filter out the selected groups and groups where label is not 0
         filtered_sub_group = sub_group[(sub_group['label'] != 0) | label_0_group_indices.isin(groups_to_keep)]
@@ -52,3 +53,26 @@ def under_sampling(df):
         filtered_df = pd.concat([filtered_df, filtered_sub_group])
 
     return filtered_df.reset_index(drop=True)
+
+
+def plot_accuracy(train_acc, val_acc, save_path):
+    """
+    Plot training and validation accuracy and save the plot to a file.
+
+    Args:
+    train_acc (list): List of training accuracies over epochs.
+    val_acc (list): List of validation accuracies over epochs.
+    save_path (str): Path to save the plot image.
+    """
+    epochs = range(1, len(train_acc) + 1)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, train_acc, label='Training Accuracy', marker='o')
+    plt.plot(epochs, val_acc, label='Validation Accuracy', marker='o')
+    plt.title('Training and Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(save_path, format='jpg')
+    plt.show()
