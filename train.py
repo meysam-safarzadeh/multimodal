@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
+from utils import class_wise_accuracy
 
 
 class RandomDataset(Dataset):
@@ -47,6 +48,8 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
     running_loss = 0.0
     correct = 0
     total = 0
+    num_classes = 5
+    all_class_accuracies = []
     for i, (z1, z2, labels) in enumerate(train_loader, 0):
         z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
 
@@ -63,15 +66,22 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
 
+        # Calculate class-wise accuracy
+        class_accuracies = class_wise_accuracy(outputs, labels, num_classes)
+        all_class_accuracies.append(class_accuracies)
+
     train_loss = running_loss / len(train_loader)
-    accuracy = 100 * correct / total
 
-    # Print average loss and accuracy for the epoch
+    # Average across all classes and batches for class-wise accuracy
+    avg_class_accuracy = np.nanmean(np.array(all_class_accuracies), axis=0)
+    overall_avg_accuracy = np.mean(avg_class_accuracy) * 100
+
+    # Print average loss and class-wise accuracy for the epoch
     if verbose:
-        print('Epoch [%d/%d], Train Loss: %.4f, Accuracy: %.3f %%' %
-              (epoch + 1, numEpochs, train_loss, accuracy))
+        print('Epoch [%d/%d], Train Loss: %.4f, Average Class Accuracy: %.3f %%' %
+              (epoch + 1, numEpochs, train_loss, overall_avg_accuracy))
 
-    return train_loss, accuracy
+    return train_loss, overall_avg_accuracy
 
 
 def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_size, val_size):
@@ -135,8 +145,8 @@ def main():
     num_classes = 5
     batch_size = 64
     sequence_length = 7
-    learning_rate = 0.001
-    num_epochs = 1
+    learning_rate = 1e-6
+    num_epochs = 10
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -184,10 +194,10 @@ def main():
         }, is_best)
 
     # Test the model
-    test(test_loader, model, criterion, device, True)
+    # test(test_loader, model, criterion, device, True)
 
     # Plot loss curves
-    plot_loss(train_losses, val_losses, 'loss_curve.png')
+    # plot_loss(train_losses, val_losses, 'loss_curve.png')
 
 
 if __name__ == '__main__':
