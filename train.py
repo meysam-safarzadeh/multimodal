@@ -89,24 +89,31 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     running_loss = 0.0
     correct = 0
     total = 0
+    num_classes = 5
+    all_class_accuracies = []
+
     with torch.no_grad():
         for i, (z1, z2, labels) in enumerate(val_loader, 0):
             z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
             _, _, _, outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+
+            # Calculate class-wise accuracy
+            class_accuracies = class_wise_accuracy(outputs, labels, num_classes)
+            all_class_accuracies.append(class_accuracies)
 
     val_loss = running_loss / len(val_loader)
-    accuracy = 100 * correct / total
+
+    # Average across all classes and batches for class-wise accuracy
+    avg_class_accuracy = np.nanmean(np.array(all_class_accuracies), axis=0) * 100
+    overall_avg_accuracy = np.mean(avg_class_accuracy)
 
     if verbose:
-        print('Validation Loss: %.3f' % val_loss)
-        print('Accuracy of the network on the validation data: %d %%' % accuracy)
+        print('Epoch [%d/%d], Validation Loss: %.3f' % (epoch + 1, numEpochs, val_loss))
+        print('Validation Class-wise Accuracy:', np.round(avg_class_accuracy, 2))
 
-    return val_loss, accuracy
+    return val_loss, overall_avg_accuracy,  avg_class_accuracy
 
 
 def test(test_loader, model, criterion, device, verbose):
@@ -135,7 +142,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main():
     # Initialize parameters and data
-    verbose = False
+    verbose = False # Set to True to print inside the train and val functions
     input_dim = [22, 512]
     hidden_dim = 1024
     num_heads = 2
@@ -175,9 +182,10 @@ def main():
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
-        val_loss, val_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
+        val_loss, val_acc , class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
         print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
               f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
+        print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
