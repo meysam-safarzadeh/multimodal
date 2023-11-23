@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
-from utils import class_wise_accuracy, plot_accuracy
+from utils import class_wise_accuracy, plot_accuracy, plot_loss
 
 
 class RandomDataset(Dataset):
@@ -23,16 +23,6 @@ class RandomDataset(Dataset):
 
     def __len__(self):
         return self.len
-
-
-def plot_loss(train_loss, val_loss, save_path):
-    plt.figure(figsize=(10, 5))
-    plt.plot(train_loss, label='Training Loss')
-    plt.plot(val_loss, label='Validation Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig(save_path)
 
 
 def save_checkpoint(state, is_best, checkpoint_folder='checkpoints/', filename='checkpoint.pth.tar'):
@@ -147,7 +137,7 @@ def main():
     hidden_dim = 1024
     num_heads = 2
     num_layers = [4, 6]
-    B = 5 # Number of bottleneck tokens
+    B = 3 # Number of bottleneck tokens
     Lf = 3
     num_classes = 5
     batch_size = 64

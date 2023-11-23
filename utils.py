@@ -75,4 +75,15 @@ def plot_accuracy(train_acc, val_acc, save_path):
     plt.legend()
     plt.grid(True)
     plt.savefig(save_path, format='jpg')
-    plt.show()
+    plt.close()
+
+
+def plot_loss(train_loss, val_loss, save_path):
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_loss, label='Training Loss')
+    plt.plot(val_loss, label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(save_path)
+    plt.close()
