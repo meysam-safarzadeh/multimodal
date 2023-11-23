@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 import torch
 import numpy as np
 import pandas as pd
+from utils import under_sampling
 
 
 class MintPainDataset(Dataset):
@@ -101,8 +102,11 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     # Get min and max values for each modality
     fau_min_max_vals, thermal_min_max_vals = get_min_max_for_each_modality(train_df, thermal_file_path)
 
+    # Under-sample the training set
+    train_df_undersampled = under_sampling(train_df)
+
     # Create subsets
-    train_dataset = MintPainDataset(train_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
+    train_dataset = MintPainDataset(train_df_undersampled, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
     val_dataset = MintPainDataset(val_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
     test_dataset = MintPainDataset(test_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
 
