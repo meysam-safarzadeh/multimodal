@@ -178,8 +178,8 @@ def main():
     # Training loop
     train_losses = []
     val_losses = []
-    train_acces = []
-    val_acces = []
+    train_accuracies = []
+    val_accuracies = []
     best_val_loss = float('inf')
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
@@ -191,8 +191,8 @@ def main():
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
-        train_acces.append(train_acc)
-        val_acces.append(val_acc)
+        train_accuracies.append(train_acc)
+        val_accuracies.append(val_acc)
 
         # Save checkpoints
         is_best = val_loss < best_val_loss
@@ -210,7 +210,7 @@ def main():
 
     # Plot loss & acc curves
     plot_loss(train_losses, val_losses, 'loss_curve.png')
-    plot_accuracy(train_acces, val_acces, 'accuracy_curve.png')
+    plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
 
 
 if __name__ == '__main__':
