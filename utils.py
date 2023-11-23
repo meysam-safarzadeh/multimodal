@@ -13,9 +13,9 @@ def class_wise_accuracy(outputs, labels, num_classes):
         num_classes (int): The number of classes.
 
     Returns:
-        list: A list containing accuracy for each class.
+        list: An array containing accuracy for each class.
     """
     _, predicted = torch.max(outputs, 1)
     cm = confusion_matrix(labels.cpu().numpy(), predicted.cpu().numpy(), labels=np.arange(num_classes))
     class_accuracies = cm.diagonal() / cm.sum(axis=1).clip(min=1)
-    return class_accuracies
+    return np.array(class_accuracies)
