@@ -134,7 +134,7 @@ def main():
     # Initialize parameters and data
     verbose = False # Set to True to print inside the train and val functions
     input_dim = [22, 512]
-    hidden_dim = 1024
+    hidden_dim = [88, 1024, 256]  # Hidden dimension for modality 1 and modality 2 and after fusion respectively
     num_heads = [2, 16, 2]  # Number of heads for modality 1 and modality 2 and after fusion respectively
     num_layers = [4, 6]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
     B = 3  # Number of bottleneck tokens

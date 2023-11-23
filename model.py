@@ -43,8 +43,8 @@ class MultiLayerTransformer(nn.Module):
 class ModalitySpecificTransformer(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T):
         super(ModalitySpecificTransformer, self).__init__()
-        self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim, num_heads[0], num_layers[0])
-        self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim, num_heads[1], num_layers[1], input_dim[0])
+        self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim[0], num_heads[0], num_layers[0])
+        self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim[1], num_heads[1], num_layers[1], input_dim[0])
 
     def forward(self, z1, z2):
         z1_final = self.modality1_transformer(z1)
@@ -62,8 +62,8 @@ class FusionTransformers(nn.Module):
         self.bottleneck_tokens = nn.Parameter(torch.empty(1, B, input_dim[0]), requires_grad=True)
         init.normal_(self.bottleneck_tokens, mean=0, std=0.02)
 
-        self.layers_modality1 = self._get_layers(input_dim[0], num_heads[2], hidden_dim, Lf)
-        self.layers_modality2 = self._get_layers(input_dim[0], num_heads[2], hidden_dim, Lf)
+        self.layers_modality1 = self._get_layers(input_dim[0], num_heads[2], hidden_dim[2], Lf)
+        self.layers_modality2 = self._get_layers(input_dim[0], num_heads[2], hidden_dim[2], Lf)
 
     def _get_layers(self, input_dim, num_heads, hidden_dim, Lf):
         encoder_layer = nn.TransformerEncoderLayer(d_model=input_dim, nhead=num_heads, dim_feedforward=hidden_dim,
