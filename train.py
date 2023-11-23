@@ -135,15 +135,15 @@ def main():
     verbose = False # Set to True to print inside the train and val functions
     input_dim = [22, 512]
     hidden_dim = 1024
-    num_heads = 2
-    num_layers = [4, 6]
-    B = 3 # Number of bottleneck tokens
-    Lf = 3
+    num_heads = [2, 16, 2]  # Number of heads for modality 1 and modality 2 and after fusion respectively
+    num_layers = [4, 6]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
+    B = 3  # Number of bottleneck tokens
+    Lf = 3  # Number of layers after fusionM
     num_classes = 5
     batch_size = 64
     sequence_length = 7
     learning_rate = 1e-4
-    num_epochs = 2
+    num_epochs = 100
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
