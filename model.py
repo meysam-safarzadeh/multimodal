@@ -92,7 +92,7 @@ class FusionTransformers(nn.Module):
         return z1, final_tokens, z2
 
 
-def positional_encoding(sequence_length, d_model):
+def positional_encoding(sequence_length, d_model, device):
     """Compute the sinusoidal positional encoding for a batch of sequences."""
     # Initialize a matrix to store the positional encodings
     pos_enc = torch.zeros(sequence_length, d_model)
@@ -105,12 +105,12 @@ def positional_encoding(sequence_length, d_model):
             pos_enc[pos, i + 1] = torch.cos(pos * div_term)
 
     # Add an extra dimension to match the batch size in input
-    pos_enc = pos_enc.unsqueeze(0)
+    pos_enc = pos_enc.unsqueeze(0).to(device)
     return pos_enc
 
 
 class AttentionBottleneckFusion(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, max_seq_length=10):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -118,8 +118,8 @@ class AttentionBottleneckFusion(nn.Module):
         self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim[1]), requires_grad=True)
 
         # Positional encodings
-        self.positional_encodings1 = positional_encoding(max_seq_length, input_dim[0])
-        self.positional_encodings2 = positional_encoding(max_seq_length, input_dim[1])
+        self.positional_encodings1 = positional_encoding(max_seq_length, input_dim[0], device)
+        self.positional_encodings2 = positional_encoding(max_seq_length, input_dim[1], device)
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
