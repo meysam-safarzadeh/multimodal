@@ -136,9 +136,9 @@ def main():
     input_dim = [22, 512]
     hidden_dim = [88, 1024, 256]  # Hidden dimension for modality 1 and modality 2 and after fusion respectively
     num_heads = [2, 16, 2]  # Number of heads for modality 1 and modality 2 and after fusion respectively
-    num_layers = [4, 6]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
+    num_layers = [2, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
     B = 3  # Number of bottleneck tokens
-    Lf = 3  # Number of layers after fusionM
+    Lf = 4  # Number of layers after fusion
     num_classes = 5
     batch_size = 64
     sequence_length = 7
