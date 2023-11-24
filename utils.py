@@ -44,7 +44,7 @@ def under_sampling(df):
 
         # Sample 1/4 of these groups to keep
         groups_to_keep = np.random.choice(label_0_group_indices.unique(),
-                                          size=int(len(label_0_group_indices.unique()) * 0.29), replace=False)
+                                          size=int(len(label_0_group_indices.unique()) * 0.27), replace=False)
 
         # Filter out the selected groups and groups where label is not 0
         filtered_sub_group = sub_group[(sub_group['label'] != 0) | label_0_group_indices.isin(groups_to_keep)]
