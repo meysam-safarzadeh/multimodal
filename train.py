@@ -147,6 +147,7 @@ def main():
     iteration = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     dropout_rate = 0.0  # Dropout rate before the last classification layer
+    weight_decay = 1e-3  # Weight decay for Adam optimizer
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -167,7 +168,7 @@ def main():
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes, device,
                                       mode=mode, dropout_rate=dropout_rate).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     # Training loop
     train_losses = []
