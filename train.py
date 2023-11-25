@@ -144,6 +144,7 @@ def main():
     sequence_length = 7
     learning_rate = 1e-4
     num_epochs = 100
+    iteration = 1
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -154,7 +155,7 @@ def main():
     split_file_path = 'cross_validation_split.csv'
 
     # Create the DataLoader
-    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration=0, batch_size=batch_size)
+    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size=batch_size)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
