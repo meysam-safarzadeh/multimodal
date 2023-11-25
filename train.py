@@ -146,7 +146,7 @@ def main():
     num_epochs = 100
     iteration = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
-    dropout_rate = 0.0
+    dropout_rate = 0.0  # Dropout rate before the last classification layer
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
