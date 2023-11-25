@@ -111,7 +111,7 @@ def positional_encoding(sequence_length, d_model, device):
 
 class AttentionBottleneckFusion(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10,
-                 mode='concat'):
+                 mode='concat', dropout_rate=0.0):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -128,6 +128,10 @@ class AttentionBottleneckFusion(nn.Module):
 
         # Initialize FusionTransformers
         self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
+
+        # Dropout layers
+        self.dropout1 = nn.Dropout(dropout_rate)
+        self.dropout2 = nn.Dropout(dropout_rate)
 
         # Combining the CLS representations from both modalities for classification
         self.combined_classifier = nn.Linear(2*input_dim[0], num_classes)  # Combined classifier
@@ -153,8 +157,8 @@ class AttentionBottleneckFusion(nn.Module):
         z1_out, final_tokens, z2_out = self.fusion_transformer(z1, z2)
 
         # Extracting the CLS token's representation post transformation
-        cls_representation1 = z1_out[:, 0, :]
-        cls_representation2 = z2_out[:, 0, :]
+        cls_representation1 = self.dropout1(z1_out[:, 0, :])
+        cls_representation2 = self.dropout2(z2_out[:, 0, :])
 
         if self.mode == 'concat':
             # Combining the two CLS representations
