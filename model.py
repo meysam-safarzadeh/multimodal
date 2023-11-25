@@ -110,7 +110,8 @@ def positional_encoding(sequence_length, d_model, device):
 
 
 class AttentionBottleneckFusion(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10,
+                 mode='concat'):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -129,7 +130,10 @@ class AttentionBottleneckFusion(nn.Module):
         self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
 
         # Combining the CLS representations from both modalities for classification
-        self.classifier = nn.Linear(2*input_dim[0], num_classes)
+        self.combined_classifier = nn.Linear(2*input_dim[0], num_classes)  # Combined classifier
+        self.classifier1 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 1
+        self.classifier2 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 2
+        self.mode = mode  # Mode for classification
 
     def forward(self, z1, z2):
         # Concat the CLS tokens for each modality
@@ -152,12 +156,25 @@ class AttentionBottleneckFusion(nn.Module):
         cls_representation1 = z1_out[:, 0, :]
         cls_representation2 = z2_out[:, 0, :]
 
-        # Combining the two CLS representations
-        combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
+        if self.mode == 'concat':
+            # Combining the two CLS representations
+            combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
 
-        # Classification
-        output = self.classifier(combined_cls)
-        final_class = F.softmax(output, dim=1)
+            # Classification using combined classifier
+            output = self.combined_classifier(combined_cls)
+            final_class = F.softmax(output, dim=1)
+
+        elif self.mode == 'separate':
+            # Classification using separate classifiers
+            output1 = self.classifier1(cls_representation1)
+            output2 = self.classifier2(cls_representation2)
+
+            # Averaging the logits from both classifiers
+            averaged_output = (output1 + output2) / 2
+            final_class = F.softmax(averaged_output, dim=1)
+
+        else:
+            raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
 
         return z1_out, final_tokens, z2_out, final_class
 

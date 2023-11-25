@@ -145,6 +145,7 @@ def main():
     learning_rate = 1e-4
     num_epochs = 100
     iteration = 1
+    mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -162,7 +163,8 @@ def main():
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize model, loss function, and optimizer
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes, device).to(device)
+    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes, device,
+                                      mode=mode).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
