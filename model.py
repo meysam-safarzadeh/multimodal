@@ -114,8 +114,8 @@ class AttentionBottleneckFusion(nn.Module):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
-        self.cls_token1 = nn.Parameter(torch.randn(1, 1, input_dim[0]), requires_grad=True)
-        self.cls_token2 = nn.Parameter(torch.randn(1, 1, input_dim[1]), requires_grad=True)
+        self.cls_token1 = nn.Parameter(2 * torch.rand(1, 1, input_dim[0]) - 1, requires_grad=True)
+        self.cls_token2 = nn.Parameter(2 * torch.rand(1, 1, input_dim[1]) - 1, requires_grad=True)
 
         # Positional encodings
         self.positional_encodings1 = positional_encoding(max_seq_length, input_dim[0], device)
