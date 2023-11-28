@@ -137,18 +137,18 @@ def main():
     hidden_dim = [88, 1024, 256]  # Hidden dimension for modality 1 and modality 2 and after fusion respectively
     num_heads = [2, 16, 2]  # Number of heads for modality 1 and modality 2 and after fusion respectively
     num_layers = [2, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
-    B = 3  # Number of bottleneck tokens
+    B = 5  # Number of bottleneck tokens
     Lf = 4  # Number of layers after fusion
     num_classes = 5
     batch_size = 64
     sequence_length = 7
     learning_rate = 1e-4
-    num_epochs = 100
+    num_epochs = 80
     iteration = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     dropout_rate = 0  # Dropout rate before the last classification layer
     weight_decay = 0.0  # Weight decay for Adam optimizer
-    downsample_method = 'MaxPool'  # Choose 'MaxPool' or 'Linear' for down sampling method of the thermal embeddings
+    downsample_method = 'Linear'  # Choose 'MaxPool' or 'Linear' for down sampling method of the thermal embeddings
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
