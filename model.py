@@ -8,13 +8,20 @@ from torch.nn import init
 import math
 
 
-class PoolingReducer(nn.Module):
-    def __init__(self, output_dim):
-        super(PoolingReducer, self).__init__()
-        self.pool = nn.AdaptiveMaxPool1d(output_dim)
+class DownSample(nn.Module):
+    def __init__(self, output_dim, method='MaxPool'):
+        super(DownSample, self).__init__()
+        self.pool1 = nn.AdaptiveMaxPool1d(output_dim)
+        self.pool2 = nn.Linear(512, output_dim)
+        self.method = method
 
     def forward(self, x):
-        reduced = self.pool(x)
+        if self.method == 'MaxPool':
+            reduced = self.pool1(x)
+        elif self.method == 'Linear':
+            reduced = self.pool2(x)
+        else:
+            raise ValueError("Invalid method for down sampling. Choose 'MaxPool' or 'Linear'.")
         return reduced
 
 
@@ -33,8 +40,10 @@ class MultiLayerTransformer(nn.Module):
 
     def forward(self, z):
         z = self.transformer_encoder(z)
+
+        # Reduce the output dimension if specified
         if self.output_dim is not None:
-            z = PoolingReducer(self.output_dim)(z)
+            z = DownSample(self.output_dim)(z)
         return z
 
 
