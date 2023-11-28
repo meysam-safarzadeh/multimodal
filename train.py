@@ -146,8 +146,9 @@ def main():
     num_epochs = 100
     iteration = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
-    dropout_rate = 0.0  # Dropout rate before the last classification layer
-    weight_decay = 1e-3  # Weight decay for Adam optimizer
+    dropout_rate = 0  # Dropout rate before the last classification layer
+    weight_decay = 0.0  # Weight decay for Adam optimizer
+    downsample_method = 'MaxPool'  # Choose 'MaxPool' or 'Linear' for down sampling method of the thermal embeddings
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # device = 'cpu'
 
@@ -158,7 +159,8 @@ def main():
     split_file_path = 'cross_validation_split.csv'
 
     # Create the DataLoader
-    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size=batch_size)
+    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
+                                                              iteration, batch_size=batch_size)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -166,7 +168,7 @@ def main():
 
     # Initialize model, loss function, and optimizer
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes, device,
-                                      mode=mode, dropout_rate=dropout_rate).to(device)
+                                      mode=mode, dropout_rate=dropout_rate, downsmaple_method=downsample_method).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 

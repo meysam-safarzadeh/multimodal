@@ -9,17 +9,28 @@ import math
 
 
 class DownSample(nn.Module):
-    def __init__(self, output_dim, method='MaxPool'):
+    def __init__(self, output_dim, method=None):
         super(DownSample, self).__init__()
-        self.pool1 = nn.AdaptiveMaxPool1d(output_dim)
-        self.pool2 = nn.Linear(512, output_dim)
-        self.method = method
+        if method is not None:
+            self.pool1 = nn.AdaptiveMaxPool1d(output_dim)
+            self.pool2 = nn.Linear(512, output_dim)
+            self.method = method
+        else:
+            pass
 
     def forward(self, x):
         if self.method == 'MaxPool':
             reduced = self.pool1(x)
         elif self.method == 'Linear':
-            reduced = self.pool2(x)
+            # x shape: (batch, 7, 512)
+            batch_size, seq_len, _ = x.size()
+
+            # Reshape x to (-1, 512) to apply the linear layer
+            x = x.view(-1, 512)
+            x = self.pool2(x)
+
+            # Reshape x back to (batch, 7, 23)
+            reduced = x.view(batch_size, seq_len, -1)
         else:
             raise ValueError("Invalid method for down sampling. Choose 'MaxPool' or 'Linear'.")
         return reduced
@@ -27,7 +38,7 @@ class DownSample(nn.Module):
 
 # Define a class that applies the transformer L times
 class MultiLayerTransformer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, output_dim=None):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, output_dim=None, downsmaple_method=None):
         super(MultiLayerTransformer, self).__init__()
 
         # Define a single transformer encoder layer with batch_first=True
@@ -36,24 +47,26 @@ class MultiLayerTransformer(nn.Module):
 
         # Stack num_layers of these layers to form the complete transformer encoder
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
-        self.output_dim = output_dim
+        self.down_sample = DownSample(output_dim, downsmaple_method)
+        self.downsample_method = downsmaple_method
 
     def forward(self, z):
         z = self.transformer_encoder(z)
 
         # Reduce the output dimension if specified
-        if self.output_dim is not None:
-            z = DownSample(self.output_dim)(z)
+        if self.downsample_method is not None:
+            z = self.down_sample(z)
         return z
 
 
 # Define a class that applies the MultiLayerModalityTransformer to two modalities
 # and concatenates the results with T additional tokens in between
 class ModalitySpecificTransformer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T, downsmaple_method):
         super(ModalitySpecificTransformer, self).__init__()
         self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim[0], num_heads[0], num_layers[0])
-        self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim[1], num_heads[1], num_layers[1], input_dim[0])
+        self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim[1], num_heads[1], num_layers[1],
+                                                           input_dim[0], downsmaple_method)
 
     def forward(self, z1, z2):
         z1_final = self.modality1_transformer(z1)
@@ -120,7 +133,7 @@ def positional_encoding(sequence_length, d_model, device):
 
 class AttentionBottleneckFusion(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10,
-                 mode='concat', dropout_rate=0.0):
+                 mode='concat', dropout_rate=0.0, downsmaple_method='MaxPool'):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -133,7 +146,7 @@ class AttentionBottleneckFusion(nn.Module):
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
-                                                                         T)
+                                                                         T, downsmaple_method)
 
         # Initialize FusionTransformers
         self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
