@@ -10,6 +10,12 @@ from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
 from utils import class_wise_accuracy, plot_accuracy, plot_loss
 
+# Set random seed for reproducibility
+# random_seed = 41
+# torch.manual_seed(random_seed)
+# if torch.cuda.is_available():
+#     torch.cuda.manual_seed_all(random_seed)
+
 
 class RandomDataset(Dataset):
     def __init__(self, size, sequence_length, input_dim, num_classes=5):
@@ -144,7 +150,7 @@ def main():
     sequence_length = 7
     learning_rate = 1e-4
     num_epochs = 80
-    iteration = 1
+    fold = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     dropout_rate = 0  # Dropout rate before the last classification layer
     weight_decay = 0.0  # Weight decay for Adam optimizer
@@ -160,7 +166,7 @@ def main():
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
-                                                              iteration, batch_size=batch_size)
+                                                              fold, batch_size=batch_size)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -177,7 +183,7 @@ def main():
     val_losses = []
     train_accuracies = []
     val_accuracies = []
-    best_val_loss = float('inf')
+    best_acc_acc = float(0.0)
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
@@ -192,15 +198,17 @@ def main():
         val_accuracies.append(val_acc)
 
         # Save checkpoints
-        is_best = val_loss < best_val_loss
+        is_best = val_acc > best_acc_acc
         if is_best:
-            best_val_loss = val_loss
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'state_dict': model.state_dict(),
-            'best_val_loss': best_val_loss,
-            'optimizer': optimizer.state_dict(),
-        }, is_best)
+            best_acc_acc = val_acc
+            save_checkpoint({
+                'epoch': epoch + 1,
+                'state_dict': model.state_dict(),
+                'best_val_loss': best_acc_acc,
+                'optimizer': optimizer.state_dict(),
+            }, is_best)
+            print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_acc_acc))
+
 
     # Test the model
     # test(test_loader, model, criterion, device, True)
