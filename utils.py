@@ -87,3 +87,30 @@ def plot_loss(train_loss, val_loss, save_path):
     plt.legend()
     plt.savefig(save_path)
     plt.close()
+
+
+def load_checkpoint(model, optimizer, checkpoint_path):
+    """
+    Load a model and optimizer from a checkpoint file.
+
+    Parameters:
+    model (torch.nn.Module): The model to load the state into.
+    optimizer (torch.optim.Optimizer): The optimizer to load the state into.
+    checkpoint_path (str): Path to the checkpoint file.
+
+    Returns:
+    tuple: Returns the updated model and optimizer, and the epoch and best validation loss from the checkpoint.
+    """
+    # Load the checkpoint
+    checkpoint = torch.load(checkpoint_path)
+
+    # Load model and optimizer states
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+
+    # Extracting additional information if available
+    epoch = checkpoint.get('epoch', None)
+    best_val_acc = checkpoint.get('best_val_acc', None)
+
+    print(f"Model and optimizer states have been loaded from {checkpoint_path}")
+    return model, optimizer, epoch, best_val_acc

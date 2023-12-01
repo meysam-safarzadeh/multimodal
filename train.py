@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
-from utils import class_wise_accuracy, plot_accuracy, plot_loss
+from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint
 
 # Set random seed for reproducibility
 # random_seed = 41
@@ -149,7 +149,7 @@ def main():
     batch_size = 64
     sequence_length = 7
     learning_rate = 1e-4
-    num_epochs = 80
+    num_epochs = 1
     fold = 1
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     dropout_rate = 0  # Dropout rate before the last classification layer
@@ -183,7 +183,7 @@ def main():
     val_losses = []
     train_accuracies = []
     val_accuracies = []
-    best_acc_acc = float(0.0)
+    best_val_acc = float(0.0)
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
@@ -198,20 +198,22 @@ def main():
         val_accuracies.append(val_acc)
 
         # Save checkpoints
-        is_best = val_acc > best_acc_acc
+        is_best = val_acc > best_val_acc
         if is_best:
-            best_acc_acc = val_acc
+            best_val_acc = val_acc
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
-                'best_val_loss': best_acc_acc,
+                'best_val_acc': best_val_acc,
                 'optimizer': optimizer.state_dict(),
             }, is_best)
-            print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_acc_acc))
+            print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
 
+    # Load the best model
+    model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
 
     # Test the model
-    # test(test_loader, model, criterion, device, True)
+    test(test_loader, model, criterion, device, True)
 
     # Plot loss & acc curves
     plot_loss(train_losses, val_losses, 'loss_curve.png')
