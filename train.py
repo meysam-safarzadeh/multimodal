@@ -117,6 +117,8 @@ def test(test_loader, model, criterion, device, verbose):
     running_loss = 0.0
     correct = 0
     total = 0
+    num_classes = 5
+    all_class_accuracies = []
     with torch.no_grad():
         for z1, z2, labels in test_loader:
             z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
@@ -127,13 +129,21 @@ def test(test_loader, model, criterion, device, verbose):
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
+            # Calculate class-wise accuracy
+            class_accuracies = class_wise_accuracy(outputs, labels, num_classes)
+            all_class_accuracies.append(class_accuracies)
+
     test_loss = running_loss / len(test_loader)
-    accuracy = 100 * correct / total
+
+    # Calculate class-wise accuracy
+    avg_class_accuracy = np.nanmean(np.array(all_class_accuracies), axis=0) * 100
+    overall_avg_accuracy = np.mean(avg_class_accuracy)
 
     if verbose:
-        print('Test Loss: {:.4f}, Test Accuracy: {:.2f}%'.format(test_loss, accuracy))
+        print('Test Loss: {:.4f}, Test Accuracy: {:.2f}%'.format(test_loss, overall_avg_accuracy))
+        print('Tes Class-wise Accuracy:', np.round(avg_class_accuracy, 2))
 
-    return test_loss, accuracy
+    return test_loss, overall_avg_accuracy
 
 
 def main():
@@ -149,8 +159,8 @@ def main():
     batch_size = 64
     sequence_length = 7
     learning_rate = 1e-4
-    num_epochs = 1
-    fold = 1
+    num_epochs = 10
+    fold = 0  # Choose the fold number for cross-validation
     mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
     dropout_rate = 0  # Dropout rate before the last classification layer
     weight_decay = 0.0  # Weight decay for Adam optimizer
@@ -183,7 +193,7 @@ def main():
     val_losses = []
     train_accuracies = []
     val_accuracies = []
-    best_val_acc = float(0.0)
+    best_val_acc = float('inf')
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
@@ -198,9 +208,9 @@ def main():
         val_accuracies.append(val_acc)
 
         # Save checkpoints
-        is_best = val_acc > best_val_acc
+        is_best = val_loss < best_val_acc
         if is_best:
-            best_val_acc = val_acc
+            best_val_acc = val_loss
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
