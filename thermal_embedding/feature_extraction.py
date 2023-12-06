@@ -17,7 +17,7 @@ def main():
     # Load Model
     print("Loading model...")
     model = InceptionResnetV1(pretrained='vggface2', classify=True, num_classes=5, dropout_prob=0.25).to(device)
-    model.load_state_dict(torch.load(model_path))
+    # model.load_state_dict(torch.load(model_path))
     # print(model)
     model.eval()
 
@@ -59,7 +59,7 @@ def main():
                 print(f"Processed {idx + 1}/{len(dataset)} images")
 
     # Save the embeddings and filenames in a single NumPy .npz file
-    np.savez_compressed('Thermal_embeddings_and_filenames.npz', embeddings=np.concatenate(embeddings, axis=0),
+    np.savez_compressed('Thermal_embeddings_and_filenames_new.npz', embeddings=np.concatenate(embeddings, axis=0),
                         filenames=filenames)
 
     print("Embeddings and filenames saved in a single NumPy file.")
@@ -85,7 +85,7 @@ class ModifiedModel(torch.nn.Module):
         x = self.original_model.repeat_3(x)
         x = self.original_model.block8(x)
         x = self.original_model.avgpool_1a(x)
-        x = self.original_model.dropout(x)
+        # x = self.original_model.dropout(x)
         embeddings = self.original_model.last_linear(x.view(x.shape[0], -1))
         return embeddings
 
