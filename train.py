@@ -146,33 +146,36 @@ def test(test_loader, model, criterion, device, verbose):
     return test_loss, overall_avg_accuracy
 
 
-def main():
+def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
+         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device):
+    """
+        Main function for training an Attention-based Bottleneck Fusion model.
+
+        Parameters:
+        - hidden_dim: List of hidden dimensions for each modality and after fusion.
+        - num_heads: Number of attention heads for each modality and after fusion.
+        - num_layers: Number of transformer encoder layers for each modality.
+        - learning_rate: Learning rate for the optimizer.
+        - dropout_rate: Dropout rate used in the model.
+        - weight_decay: Weight decay factor for the optimizer.
+        - downsample_method: Method for downsampling (e.g., 'Linear', 'MaxPool').
+        - mode: Mode of operation for the final classification layer ('concat' or 'separate').
+        - fusion_layers: Number of layers after modality fusion.
+        - n_bottlenecks: Number of bottleneck tokens in the model.
+        - batch_size: Batch size for training and validation.
+        - num_epochs: Number of epochs for training.
+        - verbose: Verbosity mode.
+        - fold: Fold number for cross-validation.
+    """
     # Initialize parameters and data
-    verbose = False # Set to True to print inside the train and val functions
     input_dim = [22, 512]
-    hidden_dim = [88, 1024, 256]  # Hidden dimension for modality 1 and modality 2 and after fusion respectively
-    num_heads = [2, 16, 2]  # Number of heads for modality 1 and modality 2 and after fusion respectively
-    num_layers = [2, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
-    B = 5  # Number of bottleneck tokens
-    Lf = 4  # Number of layers after fusion
     num_classes = 5
-    batch_size = 64
-    sequence_length = 7
-    learning_rate = 1e-4
-    num_epochs = 10
-    fold = 0  # Choose the fold number for cross-validation
-    mode = 'concat'  # Choose 'concat' or 'separate' for the last classification layer
-    dropout_rate = 0  # Dropout rate before the last classification layer
-    weight_decay = 0.0  # Weight decay for Adam optimizer
-    downsample_method = 'Linear'  # Choose 'MaxPool' or 'Linear' for down sampling method of the thermal embeddings
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    # device = 'cpu'
 
     # Initialize datasets and dataloaders
     # Paths to your files
     fau_file_path = 'FAU_embedding/uniform_sampled_FAU_embeddings.csv'
-    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames.npz'
-    split_file_path = 'cross_validation_split.csv'
+    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames_new.npz'
+    split_file_path = 'cross_validation_split_2.csv'
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
@@ -183,7 +186,7 @@ def main():
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize model, loss function, and optimizer
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, B, num_classes, device,
+    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks, num_classes, device,
                                       mode=mode, dropout_rate=dropout_rate, downsmaple_method=downsample_method).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -193,24 +196,25 @@ def main():
     val_losses = []
     train_accuracies = []
     val_accuracies = []
-    best_val_acc = float('inf')
+    best_val_acc = float(0.0)
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
                            len(train_dataset))
-        val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
+        val_acc, val_acc, class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_acc:.4f}',
               f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
         print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
         train_losses.append(train_loss)
-        val_losses.append(val_loss)
+        val_losses.append(val_acc)
         train_accuracies.append(train_acc)
         val_accuracies.append(val_acc)
 
         # Save checkpoints
-        is_best = val_loss < best_val_acc
+        is_best = val_acc > best_val_acc
+
         if is_best:
-            best_val_acc = val_loss
+            best_val_acc = val_acc
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
@@ -229,6 +233,10 @@ def main():
     plot_loss(train_losses, val_losses, 'loss_curve.png')
     plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
 
+    return train_losses, val_losses, train_accuracies, val_accuracies, best_val_acc
+
 
 if __name__ == '__main__':
-    main()
+    _, _, _, _, _ = main(hidden_dim=[88, 1024, 256], num_heads=[2, 16, 2], num_layers=[2, 4], learning_rate=1e-4,
+                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='concat', fusion_layers=4,
+                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=False, fold=1, device='cuda:1')
