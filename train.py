@@ -147,7 +147,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
-         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device):
+         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -166,6 +166,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - num_epochs: Number of epochs for training.
         - verbose: Verbosity mode.
         - fold: Fold number for cross-validation.
+        - device: Device to use for training and validation.
+        - save_model: Whether to save the model or not. If True, the model will be saved in the 'checkpoints' folder.
     """
     # Initialize parameters and data
     input_dim = [22, 512]
@@ -217,13 +219,14 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
         if is_best:
             best_val_acc = val_acc
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'best_val_acc': best_val_acc,
-                'optimizer': optimizer.state_dict(),
-            }, is_best)
-            print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
+            if save_model:
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'state_dict': model.state_dict(),
+                    'best_val_acc': best_val_acc,
+                    'optimizer': optimizer.state_dict(),
+                }, is_best)
+                print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
 
     # Load the best model and test the model based on that
     # model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
@@ -239,4 +242,5 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 if __name__ == '__main__':
     _, _, _, _, _ = main(hidden_dim=[88, 1024, 256], num_heads=[2, 16, 2], num_layers=[2, 4], learning_rate=1e-4,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='concat', fusion_layers=4,
-                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=False, fold=1, device='cuda:1')
+                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=False, fold=1, device='cuda:1',
+                         save_model=True)
