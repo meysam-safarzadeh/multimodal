@@ -198,12 +198,14 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     val_accuracies = []
     best_val_acc = float(0.0)
     for epoch in range(num_epochs):
-        train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, verbose, epoch, num_epochs, batch_size,
-                           len(train_dataset))
-        val_acc, val_acc, class_wise_acc = val(val_loader, model, criterion, device, verbose, epoch, num_epochs, batch_size, len(val_dataset))
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_acc:.4f}',
-              f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
-        print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
+        train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, False,
+                                      epoch, num_epochs, batch_size, len(train_dataset))
+        val_acc, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
+                                               epoch, num_epochs, batch_size, len(val_dataset))
+        if verbose:
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_acc:.4f}',
+                  f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
+            print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
         train_losses.append(train_loss)
         val_losses.append(val_acc)
@@ -223,11 +225,9 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
             }, is_best)
             print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
 
-    # Load the best model
-    model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
-
-    # Test the model
-    test(test_loader, model, criterion, device, True)
+    # Load the best model and test the model based on that
+    # model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
+    # test(test_loader, model, criterion, device, True)
 
     # Plot loss & acc curves
     plot_loss(train_losses, val_losses, 'loss_curve.png')
