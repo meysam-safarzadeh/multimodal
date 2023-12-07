@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
+import torch.nn as nn
 
 
 def class_wise_accuracy(outputs, labels, num_classes):
@@ -114,3 +115,23 @@ def load_checkpoint(model, optimizer, checkpoint_path):
 
     print(f"Model and optimizer states have been loaded from {checkpoint_path}")
     return model, optimizer, epoch, best_val_acc
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+        pt = torch.exp(-BCE_loss)  # prevents nans when probability 0
+        F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+
+        if self.reduction == 'mean':
+            return torch.mean(F_loss)
+        elif self.reduction == 'sum':
+            return torch.sum(F_loss)
+        else:
+            return F_loss
