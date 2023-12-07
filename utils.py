@@ -4,6 +4,7 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def class_wise_accuracy(outputs, labels, num_classes):
@@ -125,13 +126,22 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
-        pt = torch.exp(-BCE_loss)  # prevents nans when probability 0
-        F_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+        # Calculate Log Probabilities
+        logp = F.log_softmax(inputs, dim=1)
+
+        # Gather log probabilities with respect to target classes
+        logp_target = logp.gather(1, targets.unsqueeze(1))
+        logp_target = logp_target.view(-1)
+
+        # Calculate the modulating factor
+        pt = logp_target.exp()
+
+        # Calculate Focal Loss
+        F_loss = -1 * self.alpha * (1 - pt) ** self.gamma * logp_target
 
         if self.reduction == 'mean':
-            return torch.mean(F_loss)
+            return F_loss.mean()
         elif self.reduction == 'sum':
-            return torch.sum(F_loss)
+            return F_loss.sum()
         else:
             return F_loss
