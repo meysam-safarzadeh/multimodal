@@ -119,25 +119,20 @@ def load_checkpoint(model, optimizer, checkpoint_path):
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+    def __init__(self, alpha=1, gamma=2, reduction='mean', eps=1e-8):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        self.eps = eps
 
     def forward(self, inputs, targets):
-        # Calculate Log Probabilities
         logp = F.log_softmax(inputs, dim=1)
-
-        # Gather log probabilities with respect to target classes
-        logp_target = logp.gather(1, targets.unsqueeze(1))
-        logp_target = logp_target.view(-1)
-
-        # Calculate the modulating factor
+        logp_target = logp.gather(1, targets.unsqueeze(1)).view(-1)
         pt = logp_target.exp()
 
-        # Calculate Focal Loss
-        F_loss = -1 * self.alpha * (1 - pt) ** self.gamma * logp_target
+        # Adding epsilon for numerical stability
+        F_loss = -1 * self.alpha * ((1 - pt) ** self.gamma) * (logp_target + self.eps)
 
         if self.reduction == 'mean':
             return F_loss.mean()
