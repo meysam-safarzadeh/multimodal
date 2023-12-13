@@ -175,13 +175,13 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
     # Initialize datasets and dataloaders
     # Paths to your files
-    fau_file_path = 'FAU_embedding/uniform_sampled_FAU_embeddings.csv'
+    fau_file_path = 'FAU_embedding/FAU_embeddings_with_labels.csv'
     thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames_new.npz'
     split_file_path = 'cross_validation_split_2.csv'
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
-                                                              fold, batch_size=batch_size)
+                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -240,7 +240,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=[88, 1024, 256], num_heads=[2, 16, 2], num_layers=[2, 4], learning_rate=1e-4,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='concat', fusion_layers=4,
-                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=False, fold=1, device='cuda:1',
-                         save_model=True)
+    _, _, _, _, _ = main(hidden_dim=[128, 1280, 320], num_heads=[11, 32, 2], num_layers=[3, 5], learning_rate=3.287e-4,
+                         dropout_rate=0.0, weight_decay=0.0, downsample_method='MaxPool', mode='separate', fusion_layers=5,
+                         n_bottlenecks=6, batch_size=128, num_epochs=150, verbose=True, fold=2, device='cuda:0',
+                         save_model=True, max_seq_len=48)
