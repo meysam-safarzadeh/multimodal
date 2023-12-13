@@ -193,11 +193,12 @@ class AttentionBottleneckFusion(nn.Module):
         elif self.mode == 'separate':
             # Classification using separate classifiers
             output1 = self.classifier1(cls_representation1)
+            final_class_1 = F.softmax(output1, dim=1)
             output2 = self.classifier2(cls_representation2)
+            final_class_2 = F.softmax(output2, dim=1)
 
             # Averaging the logits from both classifiers
-            averaged_output = (output1 + output2) / 2
-            final_class = F.softmax(averaged_output, dim=1)
+            final_class = (final_class_1 + final_class_2) / 2
 
         else:
             raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
