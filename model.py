@@ -132,7 +132,7 @@ def positional_encoding(sequence_length, d_model, device):
 
 
 class AttentionBottleneckFusion(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=10,
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=50,
                  mode='concat', dropout_rate=0.0, downsmaple_method='MaxPool'):
         super(AttentionBottleneckFusion, self).__init__()
 

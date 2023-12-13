@@ -6,7 +6,7 @@ from utils import under_sampling
 
 
 class MintPainDataset(Dataset):
-    def __init__(self, fau_dataframe, thermal_file_path, fau_min_max_vals, thermal_min_max_vals):
+    def __init__(self, fau_dataframe, thermal_file_path, fau_min_max_vals, thermal_min_max_vals, max_seq_len):
         """
         Initialize the dataset with FAU FAU_dataframe and thermal embeddings.
 
@@ -14,6 +14,9 @@ class MintPainDataset(Dataset):
             fau_dataframe (DataFrame): DataFrame containing FAU embeddings.
             thermal_file_path (str): Path to .npz file with Thermal embeddings.
         """
+
+        self.max_seq_len = max_seq_len
+
         # FAU embeddings
         self.FAU_dataframe = fau_dataframe
         self.sequences = fau_dataframe.groupby(['sub', 'trial', 'sweep', 'label']).groups
@@ -55,22 +58,27 @@ class MintPainDataset(Dataset):
         # Apply min-max normalization and scale to -1 to 1
         thermal_embeddings = 2 * ((thermal_embeddings - self.thermal_min_vals) / (
                     self.thermal_max_vals - self.thermal_min_vals)) - 1
-        thermal_embeddings = self._pad_embeddings(thermal_embeddings, axis=1)
+        thermal_embeddings = self._pad_embeddings(thermal_embeddings, axis=0)
         return torch.tensor(thermal_embeddings, dtype=torch.float32)
 
-    def _pad_embeddings(self, embeddings, axis=1):
-        max_samples = 7
+    def _pad_embeddings(self, embeddings, axis=0):
+        # Pad or truncate embeddings to max_seq_len
+        max_samples = self.max_seq_len
         if embeddings.shape[axis] < max_samples:
-            print(f"Padding embeddings from shape {embeddings.shape} to {max_samples} samples")
+            # print(f"Padding embeddings from shape {embeddings.shape} to {max_samples} samples")
             padding_shape = list(embeddings.shape)
             padding_shape[axis] = max_samples - embeddings.shape[axis]
             padding = np.zeros(padding_shape)
             embeddings = np.concatenate((embeddings, padding), axis=axis)
-            print(f"New embeddings shape: {embeddings.shape}")
+            # print(f"New embeddings shape: {embeddings.shape}")
+        elif embeddings.shape[axis] > max_samples:
+            # print(f"Truncating embeddings from shape {embeddings.shape} to {max_samples} samples")
+            embeddings = embeddings[:max_samples, :]
+            # print(f"New embeddings shape: {embeddings.shape}")
         return embeddings
 
 
-def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size=64):
+def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size, max_seq_len):
     """
     Create dataset for the FAU and thermal embeddings' dataset, split into train, validation, and test sets for
     the given iteration.
@@ -102,13 +110,16 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     # Get min and max values for each modality
     fau_min_max_vals, thermal_min_max_vals = get_min_max_for_each_modality(train_df, thermal_file_path)
 
-    # Under-sample the training set
+    # Under-sample the training set to balance the classes
     train_df_undersampled = under_sampling(train_df)
 
     # Create subsets
-    train_dataset = MintPainDataset(train_df_undersampled, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
-    val_dataset = MintPainDataset(val_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
-    test_dataset = MintPainDataset(test_df, thermal_file_path, fau_min_max_vals, thermal_min_max_vals)
+    train_dataset = MintPainDataset(train_df_undersampled, thermal_file_path, fau_min_max_vals,
+                                    thermal_min_max_vals, max_seq_len)
+    val_dataset = MintPainDataset(val_df, thermal_file_path, fau_min_max_vals,
+                                  thermal_min_max_vals, max_seq_len)
+    test_dataset = MintPainDataset(test_df, thermal_file_path, fau_min_max_vals,
+                                   thermal_min_max_vals, max_seq_len)
 
     return train_dataset, val_dataset, test_dataset
 
