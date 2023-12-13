@@ -1,5 +1,4 @@
 import optuna
-import torch
 from train import main
 
 
@@ -19,9 +18,9 @@ def objective(trial):
         trial.suggest_int("num_layers_1", 1, 6),
         trial.suggest_int("num_layers_2", 1, 6)
     ]
-    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
-    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.2)
-    weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
+    learning_rate = trial.suggest_float("learning_rate", 1e-6, 1e-3)
+    dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.0)
+    weight_decay = trial.suggest_float("weight_decay", 0.0, 0.0)
     downsample_method = trial.suggest_categorical("downsample_method", ['Linear', 'MaxPool'])
     mode = trial.suggest_categorical("mode", ['concat', 'separate'])
     fusion_layers = trial.suggest_int("fusion_layers", 2, 6)
@@ -31,7 +30,7 @@ def objective(trial):
     # Calling the main function with the suggested hyperparameters
     _, _, _, _, best_val_acc = main(hidden_dim, num_heads, num_layers, learning_rate,
                                     dropout_rate, weight_decay, downsample_method, mode, fusion_layers,
-                                    n_bottlenecks, batch_size, num_epochs=2, verbose=False, fold=1, device='cuda:1',
+                                    n_bottlenecks, batch_size, num_epochs=150, verbose=False, fold=1, device='cuda:1',
                                     save_model=False)
 
     # Optuna aims to maximize the returned value
@@ -39,7 +38,9 @@ def objective(trial):
 
 
 # Running the optimization
-study = optuna.create_study(direction="maximize")
+study_name = "tuning_MultiModalityFusion_01"  # Unique identifier of the study.
+storage_name = "sqlite:///{}.db".format(study_name)
+study = optuna.create_study(direction="maximize", study_name=study_name, storage = storage_name, load_if_exists=True)
 study.optimize(objective, n_trials=100, n_jobs=12, show_progress_bar=True)  # Adjust the number of trials as needed
 
 print("Best trial:")
