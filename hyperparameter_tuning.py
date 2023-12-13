@@ -26,22 +26,23 @@ def objective(trial):
     fusion_layers = trial.suggest_int("fusion_layers", 2, 6)
     n_bottlenecks = trial.suggest_int("n_bottlenecks", 3, 7)
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
+    max_seq_len = trial.suggest_int("max_seq_len", 4, 48, step=4)
 
     # Calling the main function with the suggested hyperparameters
     _, _, _, _, best_val_acc = main(hidden_dim, num_heads, num_layers, learning_rate,
                                     dropout_rate, weight_decay, downsample_method, mode, fusion_layers,
                                     n_bottlenecks, batch_size, num_epochs=150, verbose=False, fold=1, device='cuda:1',
-                                    save_model=False)
+                                    save_model=False, max_seq_len=max_seq_len)
 
     # Optuna aims to maximize the returned value
     return best_val_acc
 
 
 # Running the optimization
-study_name = "tuning_MultiModalityFusion_01"  # Unique identifier of the study.
+study_name = "tuning_MultiModalityFusion_02"  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(direction="maximize", study_name=study_name, storage = storage_name, load_if_exists=True)
-study.optimize(objective, n_trials=100, n_jobs=12, show_progress_bar=True)  # Adjust the number of trials as needed
+study.optimize(objective, n_trials=100, n_jobs=1, show_progress_bar=True)  # Adjust the number of trials as needed
 
 print("Best trial:")
 trial = study.best_trial
