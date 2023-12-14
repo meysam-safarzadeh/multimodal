@@ -32,7 +32,8 @@ def objective(trial):
     _, _, _, _, best_val_acc = main(hidden_dim, num_heads, num_layers, learning_rate,
                                     dropout_rate, weight_decay, downsample_method, mode, fusion_layers,
                                     n_bottlenecks, batch_size, num_epochs=150, verbose=False, fold=1, device='cuda:1',
-                                    save_model=False, max_seq_len=max_seq_len)
+                                    save_model=False, max_seq_len=max_seq_len, classification_head=classification_head,
+                                    plot=False)
 
     # Optuna aims to maximize the returned value
     return best_val_acc

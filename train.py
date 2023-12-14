@@ -149,7 +149,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head):
+         classification_head, plot):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -172,6 +172,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - save_model: Whether to save the model or not. If True, the model will be saved in the 'checkpoints' folder.
         - max_seq_len: Maximum sequence length for the input sequences. The length of the sequences + 1 CLS token
         - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
+        - plot: Whether to plot the loss and accuracy curves or not. bool = True or False
     """
     # Initialize parameters and data
     input_dim = [22, 512]
@@ -237,15 +238,15 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
     # test(test_loader, model, criterion, device, True)
 
-    # Plot loss & acc curves
-    # plot_loss(train_losses, val_losses, 'loss_curve.png')
-    # plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
+    if plot:
+        plot_loss(train_losses, val_losses, 'loss_curve.png')
+        plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
 
     return train_losses, val_losses, train_accuracies, val_accuracies, best_val_acc
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=[128, 1280, 320], num_heads=[11, 32, 2], num_layers=[3, 5], learning_rate=3.287e-4,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='MaxPool', mode='concat', fusion_layers=5,
-                         n_bottlenecks=6, batch_size=128, num_epochs=150, verbose=True, fold=2, device='cuda:0',
-                         save_model=True, max_seq_len=48, classification_head=True)
+    _, _, _, _, _ = main(hidden_dim=[96, 2048, 320], num_heads=[2, 64, 2], num_layers=[1, 2], learning_rate=4e-4,
+                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate', fusion_layers=3,
+                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=True, fold=2, device='cuda:1',
+                         save_model=True, max_seq_len=24, classification_head=True, plot=True)
