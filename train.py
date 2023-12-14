@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
-from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint
+from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint, FocalLoss
+
 
 # Set random seed for reproducibility
-# random_seed = 41
-# torch.manual_seed(random_seed)
-# if torch.cuda.is_available():
-#     torch.cuda.manual_seed_all(random_seed)
+random_seed = 41
+torch.manual_seed(random_seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(random_seed)
 
 
 class RandomDataset(Dataset):
@@ -147,7 +148,8 @@ def test(test_loader, model, criterion, device, verbose):
 
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
-         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model):
+         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
+         classification_head):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -168,6 +170,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - fold: Fold number for cross-validation.
         - device: Device to use for training and validation.
         - save_model: Whether to save the model or not. If True, the model will be saved in the 'checkpoints' folder.
+        - max_seq_len: Maximum sequence length for the input sequences. The length of the sequences + 1 CLS token
+        - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
     """
     # Initialize parameters and data
     input_dim = [22, 512]
@@ -188,8 +192,9 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize model, loss function, and optimizer
-    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks, num_classes, device,
-                                      mode=mode, dropout_rate=dropout_rate, downsmaple_method=downsample_method).to(device)
+    model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
+                                      num_classes, device, max_seq_len+1, mode, dropout_rate,
+                                      downsample_method, classification_head).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
@@ -233,14 +238,14 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # test(test_loader, model, criterion, device, True)
 
     # Plot loss & acc curves
-    plot_loss(train_losses, val_losses, 'loss_curve.png')
-    plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
+    # plot_loss(train_losses, val_losses, 'loss_curve.png')
+    # plot_accuracy(train_accuracies, val_accuracies, 'accuracy_curve.png')
 
     return train_losses, val_losses, train_accuracies, val_accuracies, best_val_acc
 
 
 if __name__ == '__main__':
     _, _, _, _, _ = main(hidden_dim=[128, 1280, 320], num_heads=[11, 32, 2], num_layers=[3, 5], learning_rate=3.287e-4,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='MaxPool', mode='separate', fusion_layers=5,
+                         dropout_rate=0.0, weight_decay=0.0, downsample_method='MaxPool', mode='concat', fusion_layers=5,
                          n_bottlenecks=6, batch_size=128, num_epochs=150, verbose=True, fold=2, device='cuda:0',
-                         save_model=True, max_seq_len=48)
+                         save_model=True, max_seq_len=48, classification_head=True)
