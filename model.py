@@ -131,9 +131,25 @@ def positional_encoding(sequence_length, d_model, device):
     return pos_enc
 
 
+class ClassificationHead(nn.Module):
+    def __init__(self, embedding_dim, seq_len, n_classes: int = 5):
+        super().__init__()
+        self.norm = nn.LayerNorm(embedding_dim)
+        self.seq = nn.Sequential(nn.Flatten(), nn.Linear(embedding_dim * seq_len, 256), nn.ReLU(),
+                                 nn.Linear(256, 128), nn.ReLU(),
+                                 nn.Linear(128, 64), nn.ReLU(),
+                                 nn.Linear(64, n_classes))
+
+    def forward(self, x):
+        x = self.norm(x)
+        x = self.seq(x)
+        # x = F.softmax(x, dim=1)
+        return x
+
+
 class AttentionBottleneckFusion(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length=50,
-                 mode='concat', dropout_rate=0.0, downsmaple_method='MaxPool'):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length,
+                 mode='concat', dropout_rate=0.0, downsmaple_method='MaxPool', classification_head=False):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -141,8 +157,8 @@ class AttentionBottleneckFusion(nn.Module):
         self.cls_token2 = nn.Parameter(2 * torch.rand(1, 1, input_dim[1]) - 1, requires_grad=True)
 
         # Positional encodings
-        self.positional_encodings1 = positional_encoding(max_seq_length, input_dim[0], device)
-        self.positional_encodings2 = positional_encoding(max_seq_length, input_dim[1], device)
+        self.positional_encodings1 = positional_encoding(100, input_dim[0], device)
+        self.positional_encodings2 = positional_encoding(100, input_dim[1], device)
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
@@ -155,11 +171,17 @@ class AttentionBottleneckFusion(nn.Module):
         self.dropout1 = nn.Dropout(dropout_rate)
         self.dropout2 = nn.Dropout(dropout_rate)
 
-        # Combining the CLS representations from both modalities for classification
-        self.combined_classifier = nn.Linear(2*input_dim[0], num_classes)  # Combined classifier
-        self.classifier1 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 1
-        self.classifier2 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 2
+        # Classification heads or layers
+        if classification_head:
+            self.combined_classifier = ClassificationHead(input_dim[0], max_seq_length*2, num_classes)
+            self.classifier1 = ClassificationHead(input_dim[0], max_seq_length, num_classes)
+            self.classifier2 = ClassificationHead(input_dim[0], max_seq_length, num_classes)
+        elif not classification_head:
+            self.combined_classifier = nn.Linear(2*input_dim[0], num_classes)  # Combined classifier
+            self.classifier1 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 1
+            self.classifier2 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 2
         self.mode = mode  # Mode for classification
+        self.classification_head = classification_head
 
     def forward(self, z1, z2):
         # Concat the CLS tokens for each modality
@@ -178,9 +200,27 @@ class AttentionBottleneckFusion(nn.Module):
         # Feed the outputs to the FusionTransformers
         z1_out, final_tokens, z2_out = self.fusion_transformer(z1, z2)
 
-        # Extracting the CLS token's representation post transformation
-        cls_representation1 = self.dropout1(z1_out[:, 0, :])
-        cls_representation2 = self.dropout2(z2_out[:, 0, :])
+        # Classification using the classification head
+        if self.classification_head:
+            if self.mode == 'concat':
+                combined_cls = torch.cat([z1_out, z2_out], dim=1)
+                final_output = self.combined_classifier(combined_cls)
+                return z1_out, final_tokens, z2_out, final_output
+
+            elif self.mode == 'separate':
+                logits_output_1 = self.classifier1(z1_out)
+                logits_output_2 = self.classifier2(z2_out)
+                final_output = (logits_output_1 + logits_output_2) / 2
+                return z1_out, final_tokens, z2_out, final_output
+
+            else:
+                raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
+
+        # Classification without classification head
+        elif not self.classification_head:
+            # Extracting the CLS token's representation post transformation
+            cls_representation1 = self.dropout1(z1_out[:, 0, :])
+            cls_representation2 = self.dropout2(z2_out[:, 0, :])
 
             if self.mode == 'concat':
                 # Combining the two CLS representations
@@ -203,52 +243,3 @@ class AttentionBottleneckFusion(nn.Module):
             raise ValueError("Invalid classification head. Choose True or False.")
 
         return z1_out, final_tokens, z2_out, final_output
-
-# 
-# # Example usage
-# if __name__ == "__main__":
-#     import torch
-#     import torch.nn as nn
-# 
-#     # [ ... Insert your class definitions here ... ]
-# 
-#     # Initialize parameters
-#     input_dim = 512  # Token embedding dimension
-#     hidden_dim = 2048  # Dimension of the inner feedforward network
-#     num_heads = 8  # Number of attention heads
-#     num_layers = [6, 4]  # Number of transformer encoder layers for modality 1 and modality 2 respectively
-#     T = 5  # Number of bottleneck tokens
-#     Lf = 3  # Number of iterations for the TempTokensFusion
-#     batch_size = 32
-#     sequence_length = 10
-#     num_classes = 5
-# 
-#     # Generate sample inputs
-#     z1 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 1
-#     z2 = torch.randn(batch_size, sequence_length, input_dim)  # Input sequence in batch-first format for modality 2
-# 
-#     # Make them variables to compute the graph
-#     z1 = Variable(z1, requires_grad=True)
-#     z2 = Variable(z2, requires_grad=True)
-# 
-#     # Instantiate model
-#     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes)
-# 
-#     # Get outputs
-#     z1_out, final_tokens, z2_out , predicted_class = model(z1, z2)
-# 
-#     # Combine the outputs into a single tuple
-#     combined_outputs = (z1_out, final_tokens, z2_out)
-# 
-#     # Create the graph using torchviz
-#     # dot = torchviz.make_dot(combined_outputs, params=dict(list(model.named_parameters()) + [('z1', z1), ('z2', z2)]))
-# 
-#     # Display the graph
-#     # dot.view()
-# 
-# 
-#     # Print shapes to check
-#     print(z1_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
-#     print(final_tokens.shape)  # Expected: (batch_size, T, input_dim)
-#     print(z2_out.shape)  # Expected: (batch_size, sequence_length, input_dim)
-#     print(predicted_class.shape)  #     Expected: (batch_size, num_classes)
