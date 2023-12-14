@@ -182,28 +182,27 @@ class AttentionBottleneckFusion(nn.Module):
         cls_representation1 = self.dropout1(z1_out[:, 0, :])
         cls_representation2 = self.dropout2(z2_out[:, 0, :])
 
-        if self.mode == 'concat':
-            # Combining the two CLS representations
-            combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
+            if self.mode == 'concat':
+                # Combining the two CLS representations
+                combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
 
-            # Classification using combined classifier
-            output = self.combined_classifier(combined_cls)
-            final_class = F.softmax(output, dim=1)
+                # Classification using combined classifier
+                final_output = self.combined_classifier(combined_cls)
 
-        elif self.mode == 'separate':
-            # Classification using separate classifiers
-            output1 = self.classifier1(cls_representation1)
-            final_class_1 = F.softmax(output1, dim=1)
-            output2 = self.classifier2(cls_representation2)
-            final_class_2 = F.softmax(output2, dim=1)
+            elif self.mode == 'separate':
+                # Classification using separate classifiers
+                logits_output_1 = self.classifier1(cls_representation1)
+                logits_output_2 = self.classifier2(cls_representation2)
 
-            # Averaging the logits from both classifiers
-            final_class = (final_class_1 + final_class_2) / 2
+                # Averaging the logits from both classifiers
+                final_output = (logits_output_1 + logits_output_2) / 2
 
+            else:
+                raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
         else:
-            raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
+            raise ValueError("Invalid classification head. Choose True or False.")
 
-        return z1_out, final_tokens, z2_out, final_class
+        return z1_out, final_tokens, z2_out, final_output
 
 # 
 # # Example usage
