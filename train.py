@@ -208,7 +208,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, False,
                                       epoch, num_epochs, batch_size, len(train_dataset))
-        val_acc, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
+        val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
                                                epoch, num_epochs, batch_size, len(val_dataset))
         if verbose:
             print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_acc:.4f}',
@@ -216,7 +216,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
             print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
         train_losses.append(train_loss)
-        val_losses.append(val_acc)
+        val_losses.append(val_loss)
         train_accuracies.append(train_acc)
         val_accuracies.append(val_acc)
 
