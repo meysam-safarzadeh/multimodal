@@ -149,7 +149,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot):
+         classification_head, plot, head_layer_sizes):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -173,6 +173,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - max_seq_len: Maximum sequence length for the input sequences. The length of the sequences + 1 CLS token
         - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
         - plot: Whether to plot the loss and accuracy curves or not. bool = True or False
+        - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
     """
     # Initialize parameters and data
     input_dim = [22, 512]
@@ -195,7 +196,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # Initialize model, loss function, and optimizer
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
                                       num_classes, device, max_seq_len+1, mode, dropout_rate,
-                                      downsample_method, classification_head).to(device)
+                                      downsample_method, classification_head, head_layer_sizes).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
@@ -211,7 +212,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
                                                epoch, num_epochs, batch_size, len(val_dataset))
         if verbose:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_acc:.4f}',
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
                   f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
             print('Validation Class-wise Accuracy:', np.round(class_wise_acc, 2))
 
@@ -247,6 +248,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 if __name__ == '__main__':
     _, _, _, _, _ = main(hidden_dim=[96, 2048, 320], num_heads=[2, 64, 2], num_layers=[1, 2], learning_rate=4e-4,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate', fusion_layers=3,
-                         n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=True, fold=2, device='cuda:1',
-                         save_model=True, max_seq_len=24, classification_head=True, plot=True)
+                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
+                         fusion_layers=3, n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=True, fold=4,
+                         device='cuda:1', save_model=True, max_seq_len=24, classification_head=True, plot=True,
+                         head_layer_sizes=[256, 128, 64])

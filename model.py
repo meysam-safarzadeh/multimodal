@@ -132,24 +132,23 @@ def positional_encoding(sequence_length, d_model, device):
 
 
 class ClassificationHead(nn.Module):
-    def __init__(self, embedding_dim, seq_len, n_classes: int = 5):
+    def __init__(self, embedding_dim, seq_len, dropout_rate, head_layer_sizes, n_classes: int = 5):
         super().__init__()
         self.norm = nn.LayerNorm(embedding_dim)
-        self.seq = nn.Sequential(nn.Flatten(), nn.Linear(embedding_dim * seq_len, 256), nn.ReLU(),
-                                 nn.Linear(256, 128), nn.ReLU(),
-                                 nn.Linear(128, 64), nn.ReLU(),
-                                 nn.Linear(64, n_classes))
+        self.seq = nn.Sequential(nn.Flatten(), nn.Linear(embedding_dim * seq_len, head_layer_sizes[0]), nn.ReLU(),
+                                 nn.Dropout(dropout_rate), nn.Linear(head_layer_sizes[0], head_layer_sizes[1]), nn.ReLU(),
+                                 nn.Dropout(dropout_rate), nn.Linear(head_layer_sizes[1], head_layer_sizes[2]), nn.ReLU(),
+                                 nn.Dropout(dropout_rate), nn.Linear(head_layer_sizes[2], n_classes))
 
     def forward(self, x):
         x = self.norm(x)
         x = self.seq(x)
-        # x = F.softmax(x, dim=1)
         return x
 
 
 class AttentionBottleneckFusion(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length,
-                 mode='concat', dropout_rate=0.0, downsmaple_method='MaxPool', classification_head=False):
+                 mode, dropout_rate, downsmaple_method, classification_head, head_layer_sizes):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -173,9 +172,9 @@ class AttentionBottleneckFusion(nn.Module):
 
         # Classification heads or layers
         if classification_head:
-            self.combined_classifier = ClassificationHead(input_dim[0], max_seq_length*2, num_classes)
-            self.classifier1 = ClassificationHead(input_dim[0], max_seq_length, num_classes)
-            self.classifier2 = ClassificationHead(input_dim[0], max_seq_length, num_classes)
+            self.combined_classifier = ClassificationHead(input_dim[0], max_seq_length*2, dropout_rate, head_layer_sizes)
+            self.classifier1 = ClassificationHead(input_dim[0], max_seq_length, dropout_rate, head_layer_sizes)
+            self.classifier2 = ClassificationHead(input_dim[0], max_seq_length, dropout_rate, head_layer_sizes)
         elif not classification_head:
             self.combined_classifier = nn.Linear(2*input_dim[0], num_classes)  # Combined classifier
             self.classifier1 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 1
@@ -225,8 +224,6 @@ class AttentionBottleneckFusion(nn.Module):
             if self.mode == 'concat':
                 # Combining the two CLS representations
                 combined_cls = torch.cat([cls_representation1, cls_representation2], dim=1)
-
-                # Classification using combined classifier
                 final_output = self.combined_classifier(combined_cls)
 
             elif self.mode == 'separate':
