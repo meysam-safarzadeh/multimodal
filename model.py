@@ -204,13 +204,13 @@ class AttentionBottleneckFusion(nn.Module):
             if self.mode == 'concat':
                 combined_cls = torch.cat([z1_out, z2_out], dim=1)
                 final_output = self.combined_classifier(combined_cls)
-                return z1_out, final_tokens, z2_out, final_output
+                return final_output
 
             elif self.mode == 'separate':
                 logits_output_1 = self.classifier1(z1_out)
                 logits_output_2 = self.classifier2(z2_out)
                 final_output = (logits_output_1 + logits_output_2) / 2
-                return z1_out, final_tokens, z2_out, final_output
+                return final_output
 
             else:
                 raise ValueError("Invalid mode. Choose 'concat' or 'separate'.")
@@ -239,4 +239,4 @@ class AttentionBottleneckFusion(nn.Module):
         else:
             raise ValueError("Invalid classification head. Choose True or False.")
 
-        return z1_out, final_tokens, z2_out, final_output
+        return final_output

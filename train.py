@@ -54,7 +54,7 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
         optimizer.zero_grad()
 
         # Forward + Backward + Optimize
-        _, _, _, outputs = model(z1, z2)
+        outputs = model(z1, z2)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -92,7 +92,7 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     with torch.no_grad():
         for i, (z1, z2, labels) in enumerate(val_loader, 0):
             z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
-            _, _, _, outputs = model(z1, z2)
+            outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
 
@@ -123,7 +123,7 @@ def test(test_loader, model, criterion, device, verbose):
     with torch.no_grad():
         for z1, z2, labels in test_loader:
             z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
-            _, _, _, outputs = model(z1, z2)
+            outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
             _, predicted = outputs.max(1)
