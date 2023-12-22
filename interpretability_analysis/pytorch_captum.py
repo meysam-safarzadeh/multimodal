@@ -6,6 +6,8 @@ import os
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+import torch.nn as nn
 
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -13,7 +15,6 @@ os.chdir(parent_dir)
 
 from model import AttentionBottleneckFusion
 from mint_pain_dataset_creator import create_dataset
-
 
 torch.manual_seed(123)
 np.random.seed(123)
@@ -59,25 +60,88 @@ def plot_interpretation(attr_z1, attr_z2):
     plt.show()
 
 
+# Function to register a hook on multihead attention layers
+def get_attention_hook(name, attention_dict):
+    def hook(module, input, output):
+        # Access the attention weights from the module if possible
+        if hasattr(module, 'attention_weights'):
+            attention_weights = module.attention_weights
+            attention_dict[module] = attention_weights.detach()
+    return hook
+
+
+# Function to plot an attention map
+def plot_attention_map(attention, title):
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(attention, annot=False, cmap='viridis')
+    plt.title(title)
+    plt.ylabel('Query Index')
+    plt.xlabel('Key Index')
+    plt.show()
+
+
+class SaveOutput:
+    def __init__(self):
+        self.outputs = []
+
+    def __call__(self, module, module_in, module_out):
+        self.outputs.append(module_out[1])
+
+    def clear(self):
+        self.outputs = []
+
+
+def patch_attention(m):
+    forward_orig = m.forward
+
+    def wrap(*args, **kwargs):
+        kwargs["need_weights"] = True
+        kwargs["average_attn_weights"] = False
+        return forward_orig(*args, **kwargs)
+
+    m.forward = wrap
+
+
+
 def interpret_model(model, data_loader, device):
     model.eval()
     integrated_gradients = IntegratedGradients(model)
 
-    # Assuming the first batch in your loader for demonstration
+    # Assuming the first batch in the loader for demonstration
     data = next(iter(data_loader))
     z1, z2, labels = data
     z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
 
+    # Register hooks to capture the attention weights
+    # Register hooks
+    save_output = SaveOutput()
+    hook_handles = []
+    for name, module in model.named_modules():
+        if isinstance(module, nn.MultiheadAttention):
+            patch_attention(module)
+            handle = module.register_forward_hook(save_output)
+            hook_handles.append(handle)
+
     # Forward pass
-    model.zero_grad()
+    # with torch.no_grad():
     output = model(z1, z2)
+
+    print(f"Number of hook handles: {len(hook_handles)}")
+    print(f"Number of saved outputs: {len(save_output.outputs)}")
+    for i, output in enumerate(save_output.outputs):
+        print(f"Output {i + 1} shape: {output.shape}")
+
+    # Visualize the attention maps
+    # loop through the keys in hook_handles or specify layer names
+    for i, attention in enumerate(save_output.outputs):
+        plot_attention_map(attention[23, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
 
     baseline1 = torch.zeros_like(z1, device=device)
     baseline2 = torch.zeros_like(z2, device=device)
 
     # Calculate Integrated Gradients
     attributes, delta = integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2),
-                                                      target=labels, return_convergence_delta=True)
+                                                       target=labels, return_convergence_delta=True)
 
     return attributes, delta
 
@@ -107,24 +171,23 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
                                       num_classes, device, max_seq_len + 1, mode, dropout_rate,
                                       downsample_method, classification_head, head_layer_sizes).to(device)
-
     # Load the model
     best_model_path = 'checkpoints/model_best.pth.tar'
     model.load_state_dict(torch.load(best_model_path)['state_dict'])
 
-    attributes, delta = interpret_model(model, val_loader, device)
+    attributes, delta = interpret_model(model, train_loader, device)
 
     return attributes, delta
 
 
 if __name__ == '__main__':
     attributes, delta = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
-                            dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                            fusion_layers=2, n_bottlenecks=4, batch_size=32, num_epochs=150, verbose=True, fold=1,
-                            device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
-                            head_layer_sizes=[352, 112, 48])
+                             dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
+                             fusion_layers=2, n_bottlenecks=4, batch_size=32, num_epochs=150, verbose=True, fold=1,
+                             device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
+                             head_layer_sizes=[352, 112, 48])
 
-    print(attributes[0].shape, attributes[1].shape,  delta.shape)
+    print(attributes[0].shape, attributes[1].shape, delta.shape)
 
     print(delta)
 
