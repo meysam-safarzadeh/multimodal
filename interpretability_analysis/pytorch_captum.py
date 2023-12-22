@@ -29,10 +29,26 @@ def plot_interpretation(attr_z1, attr_z2):
     feature_importance_z2 /= feature_importance_z2.abs().max()
 
     # Plot for z1
+    # Feature labels
+    features = [
+        "pose_Rx", "pose_Ry", "pose_Rz",
+        "Inner Brow Raiser (AU01_r)", "Outer Brow Raiser (AU02_r)", "Brow Lowerer (AU04_r)",
+        "Upper Lid Raiser (AU05_r)", "Cheek Raiser (AU06_r)", "Lid Tightener (AU07_r)",
+        "Nose Wrinkler (AU09_r)", "Upper Lip Raiser (AU10_r)", "Lip Corner Puller (AU12_r)",
+        "Dimpler (AU14_r)", "Lip Corner Depressor (AU15_r)", "Chin Raiser (AU17_r)",
+        "Lip Stretcher (AU20_r)", "Lip Tightener (AU23_r)", "Lips Part (AU25_r)",
+        "Jaw Drop (AU26_r)", "Blink (AU45_r)", "gaze_angle_x", "gaze_angle_y"
+    ]
+
+    # Assuming feature_importance_z1 is a tensor with the importance values
     plt.bar(range(len(feature_importance_z1)), feature_importance_z1.detach().cpu().numpy())
+    plt.xticks(range(len(features)), features, rotation='vertical')
+
+    # Set the title and labels
     plt.title('Feature Importance in z1')
     plt.xlabel('Feature Index')
     plt.ylabel('Importance')
+    plt.tight_layout()  # This will adjust the layout to fit the labels
     plt.show()
 
     # Plot for z2
