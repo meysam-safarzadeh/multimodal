@@ -27,6 +27,12 @@ def objective(trial):
     n_bottlenecks = trial.suggest_int("n_bottlenecks", 3, 7)
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
     max_seq_len = trial.suggest_int("max_seq_len", 4, 48, step=4)
+    classification_head = trial.suggest_categorical("classification_head", [True])
+    head_layer_sizes = [
+        trial.suggest_int("Head_layer_1", 64, 512, step=32),
+        trial.suggest_int("Head_layer_2", 64, 256, step=16),
+        trial.suggest_int("Head_layer_3", 32, 128, step=16)
+    ]
 
     # Calling the main function with the suggested hyperparameters
     _, _, _, _, best_val_acc = main(hidden_dim, num_heads, num_layers, learning_rate,
