@@ -14,22 +14,9 @@ from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint
 # Set random seed for reproducibility
 random_seed = 41
 torch.manual_seed(random_seed)
+np.random.seed(random_seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(random_seed)
-
-
-class RandomDataset(Dataset):
-    def __init__(self, size, sequence_length, input_dim, num_classes=5):
-        self.len = size
-        self.data1 = torch.randn(size, sequence_length, input_dim[0])
-        self.data2 = torch.randn(size, sequence_length, input_dim[1])
-        self.labels = torch.randint(0, num_classes, (size,))
-
-    def __getitem__(self, index):
-        return self.data1[index], self.data2[index], self.labels[index]
-
-    def __len__(self):
-        return self.len
 
 
 def save_checkpoint(state, is_best, checkpoint_folder='checkpoints/', filename='checkpoint.pth.tar'):
@@ -247,8 +234,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=[96, 2048, 320], num_heads=[2, 64, 2], num_layers=[1, 2], learning_rate=4e-4,
+    _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                         fusion_layers=3, n_bottlenecks=5, batch_size=64, num_epochs=150, verbose=True, fold=4,
-                         device='cuda:1', save_model=True, max_seq_len=24, classification_head=True, plot=True,
-                         head_layer_sizes=[256, 128, 64])
+                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
+                         device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
+                         head_layer_sizes=[352, 112, 48])
