@@ -240,3 +240,63 @@ class AttentionBottleneckFusion(nn.Module):
             raise ValueError("Invalid classification head. Choose True or False.")
 
         return final_output
+
+
+class SingleModalityTransformer(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length,
+                 mode, dropout_rate, downsmaple_method, classification_head, head_layer_sizes, output_dim):
+        super(SingleModalityTransformer, self).__init__()
+        """
+        - output_dim: The output dimension of the transformer will be downsampled to this dimension.
+        - downsmaple_method: The method used to downsample the output of the transformer.
+        """
+
+        # CLS tokens for each modality
+        self.cls_token1 = nn.Parameter(2 * torch.rand(1, 1, input_dim) - 1, requires_grad=True)
+
+        # Positional encodings
+        self.positional_encodings1 = positional_encoding(100, input_dim, device)
+
+        # Initialize ModalitySpecificTransformer
+        self.multi_layer_transformer = MultiLayerTransformer(input_dim, hidden_dim, num_heads, num_layers,
+                                                             output_dim, downsmaple_method)
+
+        # Dropout layers
+        self.dropout1 = nn.Dropout(dropout_rate)
+
+        # Classification heads or layers
+        if classification_head:
+            self.classifier1 = ClassificationHead(input_dim, max_seq_length, dropout_rate, head_layer_sizes)
+
+        elif not classification_head:
+            self.classifier1 = nn.Linear(input_dim, num_classes)  # Separate classifier for modality 1
+
+        self.mode = mode  # Mode for classification
+        self.classification_head = classification_head
+
+    def forward(self, z1):
+        # Concat the CLS tokens for each modality
+        cls_token1_embed = self.cls_token1.repeat(z1.size(0), 1, 1)
+        z1 = torch.cat([cls_token1_embed, z1], dim=1)
+
+        # Add positional encodings
+        z1 = z1 + self.positional_encodings1[:, z1.size(1), :]
+
+        # Get the outputs from the modality-specific transformers
+        z1_out = self.multi_layer_transformer(z1)
+
+        # Classification using the classification head
+        if self.classification_head:
+            final_output = self.classifier1(z1_out)
+            return final_output
+
+        # Classification without classification head
+        elif not self.classification_head:
+            # Extracting the CLS token's representation post transformation
+            cls_representation1 = self.dropout1(z1_out[:, 0, :])
+            final_output = self.classifier1(cls_representation1)
+
+        else:
+            raise ValueError("Invalid classification head. Choose True or False.")
+
+        return final_output
