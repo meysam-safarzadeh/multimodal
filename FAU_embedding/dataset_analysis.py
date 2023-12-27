@@ -1,4 +1,8 @@
 import pandas as pd
+import umap
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 # Load the dataset
 file_path = 'FAU_embeddings_with_labels.csv'
@@ -10,3 +14,24 @@ modified_data = data[columns_to_keep]
 
 # Display the first few rows of the modified dataset
 print(modified_data.head())
+
+# Prepare data for UMAP
+X = modified_data.drop(columns=['label']).values
+y = modified_data['label'].values
+
+# UMAP reduction to two dimensions
+umap_model = umap.UMAP(n_components=2, n_jobs=-1)
+X_reduced = umap_model.fit_transform(X)
+
+# Plotting
+plt.figure(figsize=(10, 8))
+for label in np.unique(y):
+    indices = np.where(y == label)
+    plt.scatter(X_reduced[indices, 0], X_reduced[indices, 1], label=label, alpha=0.5)
+
+plt.title('UMAP projection of the dataset')
+plt.xlabel('UMAP 1')
+plt.ylabel('UMAP 2')
+plt.legend('upper right', title='Label')
+plt.show()
+
