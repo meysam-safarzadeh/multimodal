@@ -1,5 +1,11 @@
 import optuna
 from train import main
+import os
+
+
+# Go back to parent folder
+parent_directory = os.path.dirname(os.getcwd())
+os.chdir(parent_directory)
 
 
 def objective(trial):
