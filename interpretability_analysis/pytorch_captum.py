@@ -111,18 +111,14 @@ def patch_attention(m):
     m.forward = wrap
 
 
-
 def interpret_model(model, data_loader, device):
     model.eval()
-    integrated_gradients = IntegratedGradients(model)
-
     # Assuming the first batch in the loader for demonstration
     data = next(iter(data_loader))
     z1, z2, labels = data
     z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
 
     # Register hooks to capture the attention weights
-    # Register hooks
     save_output = SaveOutput()
     hook_handles = []
     for name, module in model.named_modules():
@@ -131,8 +127,7 @@ def interpret_model(model, data_loader, device):
             handle = module.register_forward_hook(save_output)
             hook_handles.append(handle)
 
-    # Forward pass
-    # with torch.no_grad():
+    # Forward pass to get the model outputs through the forward hooks
     output = model(z1, z2)
 
     print(f"Number of hook handles: {len(hook_handles)}")
@@ -143,16 +138,52 @@ def interpret_model(model, data_loader, device):
     # Visualize the attention maps
     # loop through the keys in hook_handles or specify layer names
     for i, attention in enumerate(save_output.outputs):
-        plot_attention_map(attention[23, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
-
-    baseline1 = torch.zeros_like(z1, device=device)
-    baseline2 = torch.zeros_like(z2, device=device)
-
-    # Calculate Integrated Gradients
-    attributes, delta = integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2),
-                                                       target=labels, return_convergence_delta=True)
+        plot_attention_map(attention[37, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
 
     return attributes, delta
+
+
+def compute_feature_importances(model, data_loader, device):
+    model.eval()
+    integrated_gradients = IntegratedGradients(model)
+    total_importance_1 = None
+    total_importance_2 = None
+    count = 0
+
+    for data in data_loader:
+        z1, z2, labels = data
+        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+
+        baseline1 = torch.zeros_like(z1, device=device)
+        baseline2 = torch.zeros_like(z2, device=device)
+
+        # Calculate Integrated Gradients
+        attributes, _ = integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2),
+                                                       target=labels, return_convergence_delta=True)
+
+        # Compute average importance for the current batch
+        feature_importance_1 = get_average_importance(attributes[0])
+        feature_importance_2 = get_average_importance(attributes[1])
+
+        # Accumulate feature importance
+        if total_importance_1 is None:
+            total_importance_1 = feature_importance_1
+            total_importance_2 = feature_importance_2
+        else:
+            total_importance_1 += feature_importance_1
+            total_importance_2 += feature_importance_2
+
+        count += 1
+
+    # Compute the average over all batches
+    avg_importance_1 = total_importance_1 / count
+    avg_importance_2 = total_importance_2 / count
+
+    # Print the average feature importances
+    print("Average Feature Importance for z1:", avg_importance_1)
+    print("Average Feature Importance for z2:", avg_importance_2)
+
+    return avg_importance_1, avg_importance_2
 
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
