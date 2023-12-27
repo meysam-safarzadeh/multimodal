@@ -25,7 +25,7 @@ umap_model = umap.UMAP(n_components=2, n_jobs=-1)
 X_reduced = umap_model.fit_transform(X)
 
 # Plotting
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(10, 8), dpi=300)
 for label in np.unique(y):
     indices = np.where(y == label)
     plt.scatter(X_reduced[indices, 0], X_reduced[indices, 1], label=label, alpha=0.5)
@@ -35,13 +35,15 @@ plt.xlabel('UMAP 1')
 plt.ylabel('UMAP 2')
 plt.legend(title='Label')
 plt.show()
+plt.close()
+
 
 # Applying PCA for dimensionality reduction
 pca_model = PCA(n_components=2)
 X_reduced_pca = pca_model.fit_transform(X)
 
 # Plotting PCA results
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(10, 8), dpi=300)
 for label in np.unique(y):
     indices = np.where(y == label)
     plt.scatter(X_reduced_pca[indices, 0], X_reduced_pca[indices, 1], label=label, alpha=0.5)
