@@ -20,14 +20,23 @@ torch.manual_seed(123)
 np.random.seed(123)
 
 
-def plot_interpretation(attr_z1, attr_z2):
-    # Sum attributions across batch and sequence dimensions for z1 and z2
-    feature_importance_z1 = attr_z1.sum(dim=0).sum(dim=0)
-    feature_importance_z2 = attr_z2.sum(dim=0).sum(dim=0)
+def get_average_importance(attr):
+    # Get the average attributions across the sequence dimension and then across the batch dimension while ignoring the
+    # padding tokens
+    mask = attr != 0
+    sum_across_samples = torch.sum(attr * mask, dim=1)
+    non_zero_counts_samples = torch.sum(mask, dim=1)
+    avg_across_samples = sum_across_samples / non_zero_counts_samples.clamp(min=1)
+    feature_importance = avg_across_samples.mean(dim=0)
 
-    # Normalize attributions
-    feature_importance_z1 /= feature_importance_z1.abs().max()
-    feature_importance_z2 /= feature_importance_z2.abs().max()
+    return feature_importance
+
+
+def plot_interpretation(attr_z1, attr_z2):
+    # Get the average attributions across the sequence dimension and then across the batch dimension while ignoring the
+    # padding tokens
+    feature_importance_z1 = get_average_importance(attr_z1)
+    feature_importance_z2 = get_average_importance(attr_z2)
 
     # Plot for z1
     # Feature labels
