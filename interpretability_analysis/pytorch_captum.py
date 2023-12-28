@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import torch.nn as nn
+import shap
+
 
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -69,13 +71,14 @@ def plot_interpretation(attr_z1, attr_z2):
     plt.show()
 
 
-# Function to register a hook on multihead attention layers
+# Function to register a hook on multi head attention layers
 def get_attention_hook(name, attention_dict):
     def hook(module, input, output):
         # Access the attention weights from the module if possible
         if hasattr(module, 'attention_weights'):
             attention_weights = module.attention_weights
             attention_dict[module] = attention_weights.detach()
+
     return hook
 
 
@@ -111,7 +114,7 @@ def patch_attention(m):
     m.forward = wrap
 
 
-def interpret_model(model, data_loader, device):
+def attention_map_extraction(model, data_loader, device):
     model.eval()
     # Assuming the first batch in the loader for demonstration
     data = next(iter(data_loader))
@@ -130,6 +133,7 @@ def interpret_model(model, data_loader, device):
     # Forward pass to get the model outputs through the forward hooks
     output = model(z1, z2)
 
+    # Print the shapes of the attention maps
     print(f"Number of hook handles: {len(hook_handles)}")
     print(f"Number of saved outputs: {len(save_output.outputs)}")
     for i, output in enumerate(save_output.outputs):
@@ -140,7 +144,7 @@ def interpret_model(model, data_loader, device):
     for i, attention in enumerate(save_output.outputs):
         plot_attention_map(attention[37, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
 
-    return attributes, delta
+    return
 
 
 def compute_feature_importances(model, data_loader, device):
@@ -242,6 +246,8 @@ if __name__ == '__main__':
     print(attributes_1.shape, attributes_2.shape)
     plot_interpretation(attributes_1, attributes_2)
 
-    print(delta)
-
-    plot_interpretation(attributes[0], attributes[1])
+    # print(attributes[0].shape, attributes[1].shape, delta.shape)
+    #
+    # print(delta)
+    #
+    # plot_interpretation(attributes[0], attributes[1])
