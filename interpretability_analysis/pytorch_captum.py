@@ -148,6 +148,8 @@ def compute_feature_importances(model, data_loader, device):
     integrated_gradients = IntegratedGradients(model)
     total_importance_1 = None
     total_importance_2 = None
+    all_attributes_1 = []
+    all_attributes_2 = []
     count = 0
 
     for data in data_loader:
@@ -173,7 +175,15 @@ def compute_feature_importances(model, data_loader, device):
             total_importance_1 += feature_importance_1
             total_importance_2 += feature_importance_2
 
+        # Store attributes for each batch
+        all_attributes_1.append(attributes[0])
+        all_attributes_2.append(attributes[1])
+
         count += 1
+
+    # Concatenate attributes from all batches
+    all_attributes_1 = torch.cat(all_attributes_1, dim=0)
+    all_attributes_2 = torch.cat(all_attributes_2, dim=0)
 
     # Compute the average over all batches
     avg_importance_1 = total_importance_1 / count
@@ -183,12 +193,12 @@ def compute_feature_importances(model, data_loader, device):
     print("Average Feature Importance for z1:", avg_importance_1)
     print("Average Feature Importance for z2:", avg_importance_2)
 
-    return avg_importance_1, avg_importance_2
+    return avg_importance_1, avg_importance_2, all_attributes_1, all_attributes_2
 
 
-def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
-         fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot, head_layer_sizes):
+def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
+               fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
+               classification_head, plot, head_layer_sizes):
     # Initialize parameters and data
     input_dim = [22, 512]
     num_classes = 5
@@ -215,19 +225,22 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     best_model_path = 'checkpoints/model_best.pth.tar'
     model.load_state_dict(torch.load(best_model_path)['state_dict'])
 
-    attributes, delta = interpret_model(model, train_loader, device)
-
-    return attributes, delta
+    return model, test_loader
 
 
 if __name__ == '__main__':
-    attributes, delta = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
-                             dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                             fusion_layers=2, n_bottlenecks=4, batch_size=32, num_epochs=150, verbose=True, fold=1,
-                             device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
-                             head_layer_sizes=[352, 112, 48])
+    # Load the model and data loader
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    model, data_loader = load_model(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
+                                   dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
+                                   fusion_layers=2, n_bottlenecks=4, batch_size=40, num_epochs=150, verbose=True, fold=1,
+                                   device=device, save_model=True, max_seq_len=40, classification_head=True, plot=True,
+                                   head_layer_sizes=[352, 112, 48])
 
-    print(attributes[0].shape, attributes[1].shape, delta.shape)
+    # Compute the feature importances
+    _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device)
+    print(attributes_1.shape, attributes_2.shape)
+    plot_interpretation(attributes_1, attributes_2)
 
     print(delta)
 
