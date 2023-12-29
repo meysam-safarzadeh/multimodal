@@ -215,6 +215,38 @@ def compute_feature_importances(model, data_loader, device, target):
     return avg_importance_1, avg_importance_2, all_attributes_1, all_attributes_2
 
 
+def compute_gradient_explainer(model, data_loader, device, target):
+    """
+    Compute the feature importances using SHAP. The average importance for each feature is computed over
+    all samples in the dataset.
+    :param model:
+    :param data_loader:
+    :param device:
+    :param target:
+    :return:
+    """
+    model.eval()
+    shap_value_z1 = []
+    batch = 0
+    for data in data_loader:
+        z1, z2, labels = data
+        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+
+        explainer = shap.GradientExplainer(model, [z1, z2])
+        shap_values = explainer.shap_values([z1, z2])
+
+        print(shap_values)
+        print(len(shap_values))
+        shap_values_z1 = shap_values[target][0]
+        shap_value_z1.append(shap_values_z1)
+        batch += 1
+        print("SHAP calculation batch ", batch, " done")
+
+    shap_value_z1 = torch.cat(shap_value_z1, dim=0)
+
+    return shap_value_z1
+
+
 def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
                fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
                classification_head, plot, head_layer_sizes):
