@@ -167,6 +167,12 @@ def compute_feature_importances(model, data_loader, device, target):
 
     for data in data_loader:
         z1, z2, labels = data
+
+        # Filter out the samples with the target class
+        z1 = z1[labels == target]
+        z2 = z2[labels == target]
+        labels = labels[labels == target]
+
         z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
 
         baseline1 = torch.zeros_like(z1, device=device)
@@ -174,7 +180,7 @@ def compute_feature_importances(model, data_loader, device, target):
 
         # Calculate Integrated Gradients
         attributes, _ = integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2),
-                                                       target=labels, return_convergence_delta=True)
+                                                       target=target, return_convergence_delta=True)
 
         # Compute average importance for the current batch
         feature_importance_1 = get_average_importance(attributes[0])
