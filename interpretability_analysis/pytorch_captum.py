@@ -147,7 +147,16 @@ def attention_map_extraction(model, data_loader, device):
     return
 
 
-def compute_feature_importances(model, data_loader, device):
+def compute_feature_importances(model, data_loader, device, target):
+    """
+    Compute the feature importances using Integrated Gradients. The average importance for each feature is computed over
+    all samples in the dataset.
+    :param model: model with loaded weights
+    :param data_loader: DataLoader object
+    :param device: can be 'cpu' or 'cuda:0' etc.
+    :param target: which class to compute the feature importances for
+    :return: average feature importances for z1 and z2 and all the attributes for z1 and z2
+    """
     model.eval()
     integrated_gradients = IntegratedGradients(model)
     total_importance_1 = None
