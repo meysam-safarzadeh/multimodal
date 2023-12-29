@@ -264,7 +264,7 @@ def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, w
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
                                                               fold, batch_size=batch_size, max_seq_len=max_seq_len)
 
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -276,25 +276,90 @@ def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, w
     best_model_path = 'checkpoints/model_best.pth.tar'
     model.load_state_dict(torch.load(best_model_path)['state_dict'])
 
-    return model, test_loader
+    return model, train_loader
 
 
 if __name__ == '__main__':
-    # Load the model and data loader
-    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-    model, data_loader = load_model(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
-                                   dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                                   fusion_layers=2, n_bottlenecks=4, batch_size=40, num_epochs=150, verbose=True, fold=1,
-                                   device=device, save_model=True, max_seq_len=40, classification_head=True, plot=True,
-                                   head_layer_sizes=[352, 112, 48])
+    features = ["pose_Rx", "pose_Ry", "pose_Rz",
+                "Inner Brow Raiser (AU01_r)", "Outer Brow Raiser (AU02_r)", "Brow Lowerer (AU04_r)",
+                "Upper Lid Raiser (AU05_r)", "Cheek Raiser (AU06_r)", "Lid Tightener (AU07_r)",
+                "Nose Wrinkler (AU09_r)", "Upper Lip Raiser (AU10_r)", "Lip Corner Puller (AU12_r)",
+                "Dimpler (AU14_r)", "Lip Corner Depressor (AU15_r)", "Chin Raiser (AU17_r)",
+                "Lip Stretcher (AU20_r)", "Lip Tightener (AU23_r)", "Lips Part (AU25_r)",
+                "Jaw Drop (AU26_r)", "Blink (AU45_r)", "gaze_angle_x", "gaze_angle_y"]
+    attributes_all_classes = []
+    attributes_all_classes_abs = []
 
-    # Compute the feature importances
-    _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device)
-    print(attributes_1.shape, attributes_2.shape)
-    plot_interpretation(attributes_1, attributes_2)
+    for i in range(5):
+        # Set the target class for computing the feature importances
+        target = i
+        device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
-    # print(attributes[0].shape, attributes[1].shape, delta.shape)
-    #
-    # print(delta)
-    #
-    # plot_interpretation(attributes[0], attributes[1])
+        # Load the model and data loader
+        model, data_loader = load_model(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3],
+                                        learning_rate=3e-4,
+                                        dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
+                                        fusion_layers=2, n_bottlenecks=4, batch_size=40, num_epochs=150, verbose=True,
+                                        fold=1,
+                                        device=device, save_model=True, max_seq_len=40, classification_head=True,
+                                        plot=True,
+                                        head_layer_sizes=[352, 112, 48])
+
+        # Compute the feature importances using Integrated Gradients
+        _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device, target)
+        print(attributes_1.shape, attributes_2.shape)
+        plot_interpretation(attributes_1, attributes_2)
+
+        # Using list comprehension to collect all z1 tensors from the data loader and concatenate them
+        all_z1 = [z1[labels == target] for z1, _, labels in data_loader]
+        all_z1 = torch.cat(all_z1, dim=0)
+
+        # Plot the feature importance using SHAP
+        reshaped_z1 = all_z1.view(-1, 22)
+        reshaped_attributes = attributes_1.view(-1, 22).cpu()
+
+        reshaped_z1 = reshaped_z1[reshaped_attributes.sum(dim=1) != 0]
+        reshaped_attributes = reshaped_attributes[reshaped_attributes.sum(dim=1) != 0]
+
+        # Calculate the global feature importance, shape (22,)
+        global_attributes = np.array(reshaped_attributes).mean(0)
+        global_attributes_abs = np.abs(reshaped_attributes).mean(0)
+
+        # Plot the global feature importance
+        shap.summary_plot(reshaped_attributes.cpu().numpy(), reshaped_z1.cpu().numpy(),
+                          feature_names=features,
+                          max_display=22, plot_type='layered_violin')
+
+        # compute_gradient_explainer(model, data_loader, device, target)
+
+        # Store the global feature importance for all classes
+        attributes_all_classes.append(global_attributes)
+        attributes_all_classes_abs.append(global_attributes_abs)
+
+    # Plot the global feature importance matrix for all classes
+    attributes_all_classes = np.array(attributes_all_classes)
+    sum_across_classes_abs = np.sum(attributes_all_classes_abs, axis=0)
+    plt.figure(figsize=(12, 8), dpi=300)
+    sns.heatmap(attributes_all_classes, annot=True, cmap='coolwarm', center=0)
+    plt.title('Global Feature Importance per Class')
+    plt.ylabel('Class Index')
+    plt.xticks(range(len(features)), features, rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+
+    # Bar Plot the global feature importance matrix for all classes
+    # Sort the features based on their importance
+    sorted_indices = sorted(range(len(sum_across_classes_abs)), key=lambda i: sum_across_classes_abs[i], reverse=True)
+    sorted_features = [features[i] for i in sorted_indices]
+    sorted_importance = [sum_across_classes_abs[i] for i in sorted_indices]
+    plt.figure(figsize=(12, 8), dpi=300)
+    # Plot the sorted bars
+    bars = plt.bar(range(len(sorted_importance)), sorted_importance)
+    # Optionally highlight the top 5 bars
+    for i in range(5):
+        bars[i].set_color('C1')  # Change color, or use any other method to highlight
+    plt.title('Overall Feature Importance (Sorted)')
+    plt.ylabel('Importance')
+    plt.xticks(range(len(sorted_features)), sorted_features, rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
