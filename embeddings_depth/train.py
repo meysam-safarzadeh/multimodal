@@ -12,6 +12,10 @@ def save_checkpoint(state, is_best, checkpoint_dir, filename='checkpoint.pth.tar
     """
     Save the training model
     """
+    # Create directory if it does not exist
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+
     filepath = os.path.join(checkpoint_dir, filename)
     torch.save(state, filepath)
     if is_best:
@@ -52,7 +56,7 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
     model = Autoencoder(use_batch_norm=use_batch_norm).to(device)
 
     # Other setup (data loader, loss function, optimizer) remains the same
-    train_set = MyAutoencoderDataset(directory=im_directory)
+    train_set = MyAutoencoderDataset(directory=im_directory, target_size=(85, 85))
     train_loader = DataLoader(train_set, batch_size, shuffle=True, drop_last=True)
 
     # the loss function and optimizer
@@ -87,7 +91,6 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
 
 # Example usage
 if __name__ == '__main__':
-    main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=5, save_checkpoint_flag=False,
+    main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=15, save_checkpoint_flag=True,
          lr=1e-4, im_directory='/media/meysam/NewVolume/MintPain_dataset/cropped_face/D',
-         batch_size=8, save_output_images=True)
-
+         batch_size=64, save_output_images=True)
