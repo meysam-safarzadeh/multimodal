@@ -1,18 +1,35 @@
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
+from torch.utils.data import Dataset
+from PIL import Image
+import os
 
 
-def create_train_loader(image_directory, batch_size=64, shuffle=True, num_workers=0):
-    # Define the transforms
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+class MyAutoencoderDataset(Dataset):
+    def __init__(self, directory):
+        """
+        Args:
+            directory (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied on a sample.
+        """
+        self.directory = directory
+        self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+        self.image_files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
-    # Load the dataset
-    train_dataset = datasets.ImageFolder(image_directory, transform=transform)
+    def __len__(self):
+        return len(self.image_files)
 
-    # Create the DataLoader
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    def __getitem__(self, idx):
+        img_name = os.path.join(self.directory, self.image_files[idx])
+        image = Image.open(img_name)
 
-    return train_loader
+        if self.transform:
+            image = self.transform(image)
+
+        # In an autoencoder, the input and output are usually the same
+        return image, image
+
+
+# Example usage
+# dataset = MyAutoencoderDataset(directory='/media/meysam/NewVolume/MintPain_dataset/cropped_face/D')
+# dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
