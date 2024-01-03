@@ -31,7 +31,7 @@ def train(model, train_loader, criterion, optimizer, device):
 
         # Forward pass
         optimizer.zero_grad()
-        outputs = model(images)
+        outputs, _ = model(images)
         loss = criterion(outputs, images)
 
         # Backward and optimize

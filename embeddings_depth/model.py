@@ -70,10 +70,11 @@ class Autoencoder(nn.Module):
     def forward(self, x):
         # encode
         x = self.encoder(x)
+        x_embedding = torch.flatten(x, start_dim=1)
 
         # decode
         x = self.decoder(x)
-        return x
+        return x, x_embedding
 
 
 # # Assuming the model and input size
