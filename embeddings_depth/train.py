@@ -1,7 +1,9 @@
 import os
 import shutil
 import torch
+from torch import optim
 from model import Autoencoder
+import torch.nn as nn
 
 
 def save_checkpoint(state, is_best, checkpoint_dir, filename='checkpoint.pth.tar'):
@@ -26,11 +28,11 @@ def train(model, train_loader, criterion, optimizer, device):
         images = images.to(device)
 
         # Forward pass
+        optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, images)
 
         # Backward and optimize
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
@@ -39,14 +41,18 @@ def train(model, train_loader, criterion, optimizer, device):
     return running_loss / len(train_loader)
 
 
-def main(use_batch_norm=True, use_cuda=True, plot_loss=False, num_epochs=10, save_checkpoint_flag=True):
+def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, save_checkpoint_flag=True,
+         lr=None):
     # Set up device
-    device = torch.device("cuda" if torch.cuda.is_available() and use_cuda else "cpu")
+    device = device
 
     # Initialize model
     model = Autoencoder(use_batch_norm=use_batch_norm).to(device)
 
     # Other setup (data loader, loss function, optimizer) remains the same
+    # the loss function and optimizer
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Training loop
     epoch_losses = []
@@ -71,4 +77,6 @@ def main(use_batch_norm=True, use_cuda=True, plot_loss=False, num_epochs=10, sav
 
 # Example usage
 if __name__ == '__main__':
-    main(use_batch_norm=True, use_cuda=True, plot_loss=True, num_epochs=5, save_checkpoint_flag=True)
+    main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=5, save_checkpoint_flag=True,
+         lr=1e-4)
+
