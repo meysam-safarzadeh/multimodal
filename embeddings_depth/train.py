@@ -4,7 +4,7 @@ import torch
 from torch import optim
 from model import Autoencoder
 import torch.nn as nn
-from utils import MyAutoencoderDataset
+from utils import MyAutoencoderDataset, save_images
 from torch.utils.data import DataLoader
 
 
@@ -40,11 +40,11 @@ def train(model, train_loader, criterion, optimizer, device):
 
         running_loss += loss.item()
 
-    return running_loss / len(train_loader)
+    return running_loss / len(train_loader), outputs, images
 
 
 def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, save_checkpoint_flag=True,
-         lr=None, im_directory=None, batch_size=None):
+         lr=None, im_directory=None, batch_size=None, save_output_images=None):
     # Set up device
     device = torch.device(device)
 
@@ -53,7 +53,7 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
 
     # Other setup (data loader, loss function, optimizer) remains the same
     train_set = MyAutoencoderDataset(directory=im_directory)
-    train_loader = DataLoader(train_set, batch_size, shuffle=True)
+    train_loader = DataLoader(train_set, batch_size, shuffle=True, drop_last=True)
 
     # the loss function and optimizer
     criterion = nn.MSELoss()
@@ -62,9 +62,14 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
     # Training loop
     epoch_losses = []
     for epoch in range(num_epochs):
-        train_loss = train(model, train_loader, criterion, optimizer, device)
+        train_loss, outputs, inputs = train(model, train_loader, criterion, optimizer, device)
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}')
         epoch_losses.append(train_loss)
+
+        # Save some of the input images and generated images from the last batch
+        if save_output_images:
+            save_images(outputs.cpu().data, name=f'./Saved_Images/inputs_epoch_{epoch}.png')
+            save_images(outputs.cpu().data, name=f'./Saved_Images/generated_epoch_{epoch}.png')
 
         # Save checkpoint
         if save_checkpoint_flag:
@@ -84,5 +89,5 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
 if __name__ == '__main__':
     main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=5, save_checkpoint_flag=False,
          lr=1e-4, im_directory='/media/meysam/NewVolume/MintPain_dataset/cropped_face/D',
-         batch_size=8)
+         batch_size=8, save_output_images=True)
 

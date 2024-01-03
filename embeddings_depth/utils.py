@@ -3,17 +3,38 @@ from torchvision import transforms, datasets
 from torch.utils.data import Dataset
 from PIL import Image
 import os
+from torchvision.utils import save_image
+
+
+def save_images(img, name):
+    """
+    Save the decoded/generated image
+    Args:
+        img (tensor): The image tensor to save.
+        name (str): Path and name of the file to save.
+    """
+    # Extract directory name from the file path
+    directory = os.path.dirname(name)
+
+    # Create directory if it does not exist
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    save_image(img, name)
 
 
 class MyAutoencoderDataset(Dataset):
-    def __init__(self, directory):
+    def __init__(self, directory, target_size=(85, 85)):
         """
         Args:
             directory (string): Directory with all the images.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
+        self.target_size = target_size
         self.directory = directory
-        self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+        self.transform = transforms.Compose([
+            transforms.Resize(self.target_size),
+            transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
         self.image_files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
     def __len__(self):
