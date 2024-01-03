@@ -4,6 +4,8 @@ import torch
 from torch import optim
 from model import Autoencoder
 import torch.nn as nn
+from utils import MyAutoencoderDataset
+from torch.utils.data import DataLoader
 
 
 def save_checkpoint(state, is_best, checkpoint_dir, filename='checkpoint.pth.tar'):
@@ -42,14 +44,17 @@ def train(model, train_loader, criterion, optimizer, device):
 
 
 def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, save_checkpoint_flag=True,
-         lr=None):
+         lr=None, im_directory=None, batch_size=None):
     # Set up device
-    device = device
+    device = torch.device(device)
 
     # Initialize model
     model = Autoencoder(use_batch_norm=use_batch_norm).to(device)
 
     # Other setup (data loader, loss function, optimizer) remains the same
+    train_set = MyAutoencoderDataset(directory=im_directory)
+    train_loader = DataLoader(train_set, batch_size, shuffle=True)
+
     # the loss function and optimizer
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -63,7 +68,7 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
 
         # Save checkpoint
         if save_checkpoint_flag:
-            save_checkpoint({'epoch': epoch + 1, 'state_dict': model.state_dict()}, False, 'your_checkpoint_dir')
+            save_checkpoint({'epoch': epoch + 1, 'state_dict': model.state_dict()}, False, checkpoint_dir='checkpoints')
 
     # Plotting the training losses
     if plot_loss:
@@ -77,6 +82,7 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
 
 # Example usage
 if __name__ == '__main__':
-    main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=5, save_checkpoint_flag=True,
-         lr=1e-4)
+    main(use_batch_norm=True, device="cuda:1", plot_loss=True, num_epochs=5, save_checkpoint_flag=False,
+         lr=1e-4, im_directory='/media/meysam/NewVolume/MintPain_dataset/cropped_face/D',
+         batch_size=8)
 
