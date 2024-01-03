@@ -76,8 +76,8 @@ class Autoencoder(nn.Module):
         return x
 
 
-# Assuming the model and input size
-model = Autoencoder(use_batch_norm=True)  # or False, depending on what you want to check
-
-batch_size = 16
-summary(model, input_size=(batch_size, 1, 85, 85), col_names=["input_size", "output_size", "num_params", "kernel_size"], depth=4)
+# # Assuming the model and input size
+# model = Autoencoder(use_batch_norm=True)  # or False, depending on what you want to check
+#
+# batch_size = 16
+# summary(model, input_size=(batch_size, 1, 85, 85), col_names=["input_size", "output_size", "num_params", "kernel_size"], depth=4)
