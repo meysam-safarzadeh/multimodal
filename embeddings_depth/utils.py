@@ -10,7 +10,7 @@ def save_images(img, name):
     """
     Save the decoded/generated image
     Args:
-        img (tensor): The image tensor to save.
+        img (tensor): The image tensors to save.
         name (str): Path and name of the file to save.
     """
     # Extract directory name from the file path
@@ -33,8 +33,8 @@ class MyAutoencoderDataset(Dataset):
         self.target_size = target_size
         self.directory = directory
         self.transform = transforms.Compose([
-            transforms.Resize(self.target_size),
-            transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+            transforms.CenterCrop(size=self.target_size),
+            transforms.ToTensor()]) # ToTensor() scales the image pixel values to [0, 1]
         self.image_files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
     def __len__(self):
