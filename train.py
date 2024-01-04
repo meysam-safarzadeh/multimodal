@@ -34,7 +34,7 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
     total = 0
     num_classes = 5
     all_class_accuracies = []
-    for i, (z1, z2, labels) in enumerate(train_loader, 0):
+    for i, (z1, z2, _, labels) in enumerate(train_loader, 0):
         z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
 
         # Zero the parameter gradients
@@ -77,7 +77,7 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     all_class_accuracies = []
 
     with torch.no_grad():
-        for i, (z1, z2, labels) in enumerate(val_loader, 0):
+        for i, (z1, z2, _,labels) in enumerate(val_loader, 0):
             z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
             outputs = model(z1, z2)
             loss = criterion(outputs, labels)
@@ -167,14 +167,15 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     num_classes = 5
 
     # Initialize datasets and dataloaders
-    # Paths to your files
-    fau_file_path = 'FAU_embedding/FAU_embeddings_with_labels.csv'
-    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames_new.npz'
+    fau_file_path = 'embeddings_fau/FAU_embeddings_with_labels.csv'
+    thermal_file_path = 'embeddings_thermal/Thermal_embeddings_and_filenames_new.npz'
+    depth_file_path = 'embeddings_depth/Depth_embeddings_and_filenames_new.npz'
     split_file_path = 'cross_validation_split_2.csv'
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
-                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len)
+                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len,
+                                                              depth_file_path=depth_file_path)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -237,5 +238,5 @@ if __name__ == '__main__':
     _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
                          fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
-                         device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
+                         device='cuda:1', save_model=False, max_seq_len=40, classification_head=True, plot=True,
                          head_layer_sizes=[352, 112, 48])
