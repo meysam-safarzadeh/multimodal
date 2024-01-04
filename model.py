@@ -9,11 +9,11 @@ import math
 
 
 class DownSample(nn.Module):
-    def __init__(self, output_dim, method=None):
+    def __init__(self, output_dim, method=None, input_dim=None):
         super(DownSample, self).__init__()
         if method is not None:
             self.pool1 = nn.AdaptiveMaxPool1d(output_dim)
-            self.pool2 = nn.Linear(512, output_dim)
+            self.pool2 = nn.Linear(input_dim, output_dim)
             self.method = method
         else:
             pass
@@ -23,10 +23,10 @@ class DownSample(nn.Module):
             reduced = self.pool1(x)
         elif self.method == 'Linear':
             # x shape: (batch, 7, 512)
-            batch_size, seq_len, _ = x.size()
+            batch_size, seq_len, input_dim = x.size()
 
             # Reshape x to (-1, 512) to apply the linear layer
-            x = x.view(-1, 512)
+            x = x.view(-1, input_dim)
             x = self.pool2(x)
 
             # Reshape x back to (batch, 7, 23)
@@ -47,7 +47,7 @@ class MultiLayerTransformer(nn.Module):
 
         # Stack num_layers of these layers to form the complete transformer encoder
         self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=num_layers)
-        self.down_sample = DownSample(output_dim, downsmaple_method)
+        self.down_sample = DownSample(output_dim, downsmaple_method, input_dim)
         self.downsample_method = downsmaple_method
 
     def forward(self, z):
@@ -248,7 +248,8 @@ class SingleModalityTransformer(nn.Module):
         super(SingleModalityTransformer, self).__init__()
         """
         - output_dim: The output dimension of the transformer will be downsampled to this dimension.
-        - downsmaple_method: The method used to downsample the output of the transformer.
+        - downsmaple_method: The method used to downsample the output of the transformer. Choose 'MaxPool' or 'Linear'
+         or None for no downsampling.
         """
 
         # CLS tokens for each modality
@@ -266,12 +267,11 @@ class SingleModalityTransformer(nn.Module):
 
         # Classification heads or layers
         if classification_head:
-            self.classifier1 = ClassificationHead(input_dim, max_seq_length, dropout_rate, head_layer_sizes)
+            self.classifier1 = ClassificationHead(output_dim, max_seq_length, dropout_rate, head_layer_sizes)
 
         elif not classification_head:
             self.classifier1 = nn.Linear(input_dim, num_classes)  # Separate classifier for modality 1
 
-        self.mode = mode  # Mode for classification
         self.classification_head = classification_head
 
     def forward(self, z1):

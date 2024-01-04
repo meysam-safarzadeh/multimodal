@@ -34,8 +34,8 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
     total = 0
     num_classes = 5
     all_class_accuracies = []
-    for i, (z1, z2, labels) in enumerate(train_loader, 0):
-        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
+    for i, (z1, z2, z3, labels) in enumerate(train_loader, 0):
+        z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device),labels.to(device).long()
 
         # Zero the parameter gradients
         optimizer.zero_grad()
@@ -45,6 +45,8 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
             outputs = model(z1)
         elif modality == 'thermal':
             outputs = model(z2)
+        elif modality == 'depth':
+            outputs = model(z3)
         else:
             raise ValueError('Modality must be either "fau" or "thermal"')
 
@@ -83,13 +85,15 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     all_class_accuracies = []
 
     with torch.no_grad():
-        for i, (z1, z2, labels) in enumerate(val_loader, 0):
-            z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
+        for i, (z1, z2, z3, labels) in enumerate(val_loader, 0):
+            z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device).long()
 
             if modality == 'fau':
                 outputs = model(z1)
             elif modality == 'thermal':
                 outputs = model(z2)
+            elif modality == 'depth':
+                outputs = model(z3)
             else:
                 raise ValueError('Modality must be either "fau" or "thermal"')
 
@@ -121,13 +125,15 @@ def test(test_loader, model, criterion, device, verbose, modality):
     num_classes = 5
     all_class_accuracies = []
     with torch.no_grad():
-        for z1, z2, labels in test_loader:
-            z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+        for z1, z2, z3, labels in test_loader:
+            z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device)
 
             if modality == 'fau':
                 outputs = model(z1)
             elif modality == 'thermal':
                 outputs = model(z2)
+            elif modality == 'depth':
+                outputs = model(z3)
             else:
                 raise ValueError('Modality must be either "fau" or "thermal"')
 
@@ -181,23 +187,25 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
         - plot: Whether to plot the loss and accuracy curves or not. bool = True or False
         - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
-        - output_dim: Output of the transformer will be downsampled to this dimension befor the classification head.
+        - output_dim: Output of the transformer will be downsampled to this dimension before the classification head.
         - modality: Modality to use for training and validation. 'fau' or 'thermal' or 'depth'
     """
     # Initialize parameters and data
-    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 512}
+    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
     input_dim = input_dim_dic[modality]
     num_classes = 5
 
     # Initialize datasets and dataloaders
     # Paths to your files
-    fau_file_path = 'FAU_embedding/FAU_embeddings_with_labels.csv'
-    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames_new.npz'
+    fau_file_path = 'embeddings_fau/FAU_embeddings_with_labels.csv'
+    thermal_file_path = 'embeddings_thermal/Thermal_embeddings_and_filenames_new.npz'
+    depth_file_path = 'embeddings_depth/Depth_embeddings_and_filenames_new.npz'
     split_file_path = 'cross_validation_split_2.csv'
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
-                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len)
+                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len,
+                                                              depth_file_path=depth_file_path)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -243,7 +251,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
                     'best_val_acc': best_val_acc,
                     'optimizer': optimizer.state_dict(),
                 }, is_best)
-                print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
+                if verbose:
+                    print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
 
     # Load the best model and test the model based on that
     # model, _, _, _ = load_checkpoint(model, optimizer, 'checkpoints/model_best.pth.tar')
@@ -257,8 +266,19 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
-                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
-                         device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
-                         head_layer_sizes=[352, 112, 48], output_dim=32, modality='thermal')
+    for i in range(5):
+        _, _, _, _, best_val_acc = main(hidden_dim=512, num_heads=4, num_layers=3, learning_rate=0.0001485687710129859,
+                                        dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
+                                        fusion_layers=None, n_bottlenecks=None, batch_size=256, num_epochs=150, verbose=True, fold=i,
+                                        device='cuda:1', save_model=False, max_seq_len=36, classification_head=True, plot=True,
+                                        head_layer_sizes=[160, 128, 112], output_dim=64, modality='depth')
+        print('Fold: {}, Best Validation Accuracy: {}'.format(i, best_val_acc))
+
+
+    # _, _, _, _, _ = main(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
+    #                      dropout_rate=0.0, weight_decay=0.0, downsample_method=None, mode=None,
+    #                      fusion_layers=None, n_bottlenecks=None, batch_size=64, num_epochs=150, verbose=True, fold=1,
+    #                      device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
+    #                      head_layer_sizes=[352, 112, 48], output_dim=22, modality='fau')
+    # output_dim=22 for FAU
+    # output_dim=32 for thermal
