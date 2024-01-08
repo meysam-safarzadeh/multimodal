@@ -140,3 +140,41 @@ class FocalLoss(nn.Module):
             return F_loss.sum()
         else:
             return F_loss
+
+
+def prepare_z(z1=None, z2=None, z3=None, labels=None, device=None, modalities=None):
+    """
+    Prepare the embeddings and labels for training. based on the modalities list order, it returns the embeddings and
+    labels in the same order. e.g. if modalities = ['thermal', 'depth'], it returns z1, z2, z3, labels in the same
+    order. It assumes z1 is FAU, z2 is thermal, and z3 is depth.
+    :param z1: embeddings of FAU
+    :param z2: embeddings of thermal
+    :param z3: embeddings of depth
+    :param labels: labels
+    :param device: device to be used
+    :param modalities: list of modalities to be used. e.g. ['thermal', 'fau', 'depth']
+    :return: prepared embeddings and labels
+    """
+
+    modalities_dic = {'fau': None, 'thermal': None, 'depth': None}
+    for mod in modalities:
+        if mod == 'fau':
+            z1 = z1.to(device)
+            modalities_dic['fau'] = z1
+        if mod == 'thermal':
+            z2 = z2.to(device)
+            modalities_dic['thermal'] = z2
+        if mod == 'depth':
+            z3 = z3.to(device)
+            modalities_dic['depth'] = z3
+
+    labels = labels.to(device).long()
+
+    if len(modalities) == 2:
+        return modalities_dic[modalities[0]], modalities_dic[modalities[1]], None, labels
+
+    elif len(modalities) == 3:
+        return modalities_dic[modalities[0]], modalities_dic[modalities[1]], modalities_dic[modalities[2]], labels
+
+    else:
+        raise ValueError('modalities should be a list of 2 or 3 modalities')

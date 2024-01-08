@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from model import AttentionBottleneckFusion
 from torch.utils.data import DataLoader, Dataset
 from mint_pain_dataset_creator import create_dataset
-from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint, FocalLoss
+from utils import class_wise_accuracy, plot_accuracy, plot_loss, prepare_z
 
 
 # Set random seed for reproducibility
@@ -27,16 +27,17 @@ def save_checkpoint(state, is_best, checkpoint_folder='checkpoints/', filename='
         torch.save(state, os.path.join(checkpoint_folder, 'model_best.pth.tar'))
 
 
-def train(train_loader, model, criterion, optimizer, device, verbose, epoch, numEpochs, batch_size, train_size):
+def train(train_loader, model, criterion, optimizer, device, verbose, epoch, numEpochs, batch_size, train_size,
+          modalities=None):
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
     num_classes = 5
     all_class_accuracies = []
-    for i, (z1, z2, _, labels) in enumerate(train_loader, 0):
-        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
-
+    for i, (z1, z2, z3, labels) in enumerate(train_loader, 0):
+        # z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
+        z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
         # Zero the parameter gradients
         optimizer.zero_grad()
 
@@ -77,8 +78,8 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     all_class_accuracies = []
 
     with torch.no_grad():
-        for i, (z1, z2, _,labels) in enumerate(val_loader, 0):
-            z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
+        for i, (z1, z2, z3,labels) in enumerate(val_loader, 0):
+            z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device).long()
             outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
@@ -136,7 +137,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot, head_layer_sizes):
+         classification_head, plot, head_layer_sizes, modalities):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -196,7 +197,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     best_val_acc = float(0.0)
     for epoch in range(num_epochs):
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, False,
-                                      epoch, num_epochs, batch_size, len(train_dataset))
+                                      epoch, num_epochs, batch_size, len(train_dataset), modalities)
         val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
                                                epoch, num_epochs, batch_size, len(val_dataset))
         if verbose:
@@ -237,6 +238,6 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 if __name__ == '__main__':
     _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
+                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=2,
                          device='cuda:1', save_model=False, max_seq_len=40, classification_head=True, plot=True,
-                         head_layer_sizes=[352, 112, 48])
+                         head_layer_sizes=[352, 112, 48], modalities=['fau', 'thermal'])
