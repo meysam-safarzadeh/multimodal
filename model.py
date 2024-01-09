@@ -87,7 +87,8 @@ class FusionTransformers(nn.Module):
         self.layers_modality1 = self._get_layers(input_dim[0], num_heads[2], hidden_dim[2], Lf)
         self.layers_modality2 = self._get_layers(input_dim[0], num_heads[2], hidden_dim[2], Lf)
 
-    def _get_layers(self, input_dim, num_heads, hidden_dim, Lf):
+    @staticmethod
+    def _get_layers(input_dim, num_heads, hidden_dim, Lf):
         encoder_layer = nn.TransformerEncoderLayer(d_model=input_dim, nhead=num_heads, dim_feedforward=hidden_dim,
                                                    batch_first=True)
         return nn.ModuleList([encoder_layer for _ in range(Lf)])
@@ -95,11 +96,11 @@ class FusionTransformers(nn.Module):
     def forward(self, z1, z2):
         # Adjusting concatenation for batch_first=True
         # Repeat Bottleneck tokens for the batch size
-        temp_tokens1 = temp_tokens2 = self.bottleneck_tokens.repeat(z1.size(0), 1, 1)
+        final_tokens = self.bottleneck_tokens.repeat(z1.size(0), 1, 1)
 
         for i in range(self.Lf):
-            z1 = torch.cat((z1, temp_tokens1), dim=1)
-            z2 = torch.cat((z2, temp_tokens2), dim=1)
+            z1 = torch.cat((z1, final_tokens), dim=1)
+            z2 = torch.cat((z2, final_tokens), dim=1)
 
             z1 = self.layers_modality1[i](z1)
             z2 = self.layers_modality2[i](z2)
