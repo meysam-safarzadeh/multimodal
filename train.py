@@ -36,7 +36,6 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
     num_classes = 5
     all_class_accuracies = []
     for i, (z1, z2, z3, labels) in enumerate(train_loader, 0):
-        # z1, z2, labels = z1.to(device), z2.to(device), labels.to(device).long()
         z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
         # Zero the parameter gradients
         optimizer.zero_grad()
@@ -69,7 +68,7 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
     return train_loss, overall_avg_accuracy
 
 
-def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_size, val_size):
+def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_size, val_size, modalities=None):
     model.eval()
     running_loss = 0.0
     correct = 0
@@ -79,7 +78,7 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
 
     with torch.no_grad():
         for i, (z1, z2, z3,labels) in enumerate(val_loader, 0):
-            z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device).long()
+            z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
             outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
@@ -164,7 +163,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
     """
     # Initialize parameters and data
-    input_dim = [22, 512]
+    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
+    input_dim = [input_dim_dic[modality] for modality in modalities]
     num_classes = 5
 
     # Initialize datasets and dataloaders
@@ -199,7 +199,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, device, False,
                                       epoch, num_epochs, batch_size, len(train_dataset), modalities)
         val_loss, val_acc, class_wise_acc = val(val_loader, model, criterion, device, False,
-                                               epoch, num_epochs, batch_size, len(val_dataset))
+                                               epoch, num_epochs, batch_size, len(val_dataset), modalities)
         if verbose:
             print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}',
                   f'Train Accuracy: {train_acc:.2f}%, Validation Accuracy: {val_acc:.2f}%')
@@ -236,8 +236,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3], learning_rate=3e-4,
+    _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 2, 2], num_layers=[2, 3], learning_rate=3e-4,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=2,
+                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
                          device='cuda:1', save_model=False, max_seq_len=40, classification_head=True, plot=True,
-                         head_layer_sizes=[352, 112, 48], modalities=['fau', 'thermal'])
+                         head_layer_sizes=[352, 112, 48], modalities=['fau', 'depth'])
