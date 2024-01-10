@@ -215,6 +215,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
         if is_best:
             best_val_acc = val_acc
+            if verbose:
+                print("Best Validation Accuracy: {}".format(best_val_acc))
             if save_model:
                 save_checkpoint({
                     'epoch': epoch + 1,
@@ -236,8 +238,10 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    _, _, _, _, _ = main(hidden_dim=[96, 512, 384], num_heads=[2, 2, 2], num_layers=[2, 3], learning_rate=3e-4,
+    # for i in range(8):
+    _, _, _, _, _ = main(hidden_dim=[128, 384, 160], num_heads=[2, 2, 11], num_layers=[1, 2], learning_rate=0.0005867622677559691,
                          dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                         fusion_layers=2, n_bottlenecks=4, batch_size=64, num_epochs=150, verbose=True, fold=1,
-                         device='cuda:1', save_model=False, max_seq_len=40, classification_head=True, plot=True,
-                         head_layer_sizes=[352, 112, 48], modalities=['fau', 'depth'])
+                         fusion_layers=3, n_bottlenecks=1, batch_size=256, num_epochs=150, verbose=True, fold=1,
+                         device='cuda:0', save_model=False, max_seq_len=36, classification_head=True, plot=True,
+                         head_layer_sizes=[352, 128, 64], modalities=['fau', 'depth'])
+    # 5-fold cross val result: 29.03 + 31.02 + 27.5 + 27.82 + 27.97 = 143.34 / 5 = 28.668
