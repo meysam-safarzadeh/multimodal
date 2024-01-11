@@ -23,7 +23,7 @@ def save_images(img, name):
     save_image(img, name)
 
 
-class MyAutoencoderDataset(Dataset):
+class AutoencoderDataset(Dataset):
     def __init__(self, directory, target_size=(85, 85)):
         """
         Args:
