@@ -12,7 +12,7 @@ class DownSample(nn.Module):
         super(DownSample, self).__init__()
         if method is not None:
             self.pool1 = nn.AdaptiveMaxPool1d(output_dim)
-            self.pool2 = nn.Linear(input_dim, output_dim)
+            self.linear = nn.Linear(input_dim, output_dim)
             self.method = method
         else:
             pass
@@ -26,7 +26,7 @@ class DownSample(nn.Module):
 
             # Reshape x to (-1, 512) to apply the linear layer
             x = x.view(-1, input_dim)
-            x = self.pool2(x)
+            x = self.linear(x)
 
             # Reshape x back to (batch, 7, 23)
             reduced = x.view(batch_size, seq_len, -1)
@@ -61,14 +61,15 @@ class MultiLayerTransformer(nn.Module):
 # Define a class that applies the MultiLayerModalityTransformer to two modalities
 # and concatenates the results with T additional tokens in between
 class ModalitySpecificTransformer(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T, downsmaple_method):
+    def __init__(self, input_dim, hidden_dim, num_heads, num_layers, T, downsmaple_method, fusion_dim):
         super(ModalitySpecificTransformer, self).__init__()
-        self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim[0], num_heads[0], num_layers[0])
+        self.modality1_transformer = MultiLayerTransformer(input_dim[0], hidden_dim[0], num_heads[0], num_layers[0],
+                                                           fusion_dim, downsmaple_method)
         self.modality2_transformer = MultiLayerTransformer(input_dim[1], hidden_dim[1], num_heads[1], num_layers[1],
-                                                           input_dim[0], downsmaple_method)
+                                                           fusion_dim, downsmaple_method)
         if len(input_dim) == 3:
             self.modality3_transformer = MultiLayerTransformer(input_dim[2], hidden_dim[2], num_heads[2], num_layers[2],
-                                                               input_dim[0], downsmaple_method)
+                                                               fusion_dim, downsmaple_method)
 
     def forward(self, z1, z2, z3):
         z1_final = self.modality1_transformer(z1)
@@ -81,17 +82,17 @@ class ModalitySpecificTransformer(nn.Module):
 
 
 class FusionTransformers(nn.Module):
-    def __init__(self, input_dim, num_heads, hidden_dim, Lf, B):
+    def __init__(self, input_dim, num_heads, hidden_dim, Lf, B, fusion_dim):
         super(FusionTransformers, self).__init__()
         self.Lf = Lf
         self.T = B
         # Adjusting the bottleneck tokens shape for batch_first=True
-        self.bottleneck_tokens = nn.Parameter(torch.empty(1, B, input_dim[0]), requires_grad=True)
+        self.bottleneck_tokens = nn.Parameter(torch.empty(1, B, fusion_dim), requires_grad=True)
         init.normal_(self.bottleneck_tokens, mean=0, std=0.02)
 
-        self.layers_modality1 = self._get_layers(input_dim[0], num_heads[-1], hidden_dim[-1], Lf)
-        self.layers_modality2 = self._get_layers(input_dim[0], num_heads[-1], hidden_dim[-1], Lf)
-        self.layers_modality3 = self._get_layers(input_dim[0], num_heads[-1], hidden_dim[-1], Lf)
+        self.layers_modality1 = self._get_layers(fusion_dim, num_heads[-1], hidden_dim[-1], Lf)
+        self.layers_modality2 = self._get_layers(fusion_dim, num_heads[-1], hidden_dim[-1], Lf)
+        self.layers_modality3 = self._get_layers(fusion_dim, num_heads[-1], hidden_dim[-1], Lf)
 
     @staticmethod
     def _get_layers(input_dim, num_heads, hidden_dim, Lf):
@@ -120,11 +121,11 @@ class FusionTransformers(nn.Module):
             z2, temp_tokens2 = z2[:, :-self.T, :], z2[:, -self.T:, :]
             if z3 is not None:
                 z3, temp_tokens3 = z3[:, :-self.T, :], z3[:, -self.T:, :]
-                final_tokens = 0.333333 * (temp_tokens1 + temp_tokens2 + temp_tokens3)
+                final_tokens = (temp_tokens1 + temp_tokens2 + temp_tokens3) / 3
                 continue
 
             # Average the two temporary tokens
-            final_tokens = 0.5 * (temp_tokens1 + temp_tokens2)
+            final_tokens = (temp_tokens1 + temp_tokens2) / 2
 
         return z1, z2, z3
 
@@ -165,7 +166,7 @@ class ClassificationHead(nn.Module):
 
 class ClassificationProcessor(nn.Module):
     def __init__(self, input_dim, dropout_rate, mode,
-                 classification_head, max_seq_length, head_layer_sizes, num_classes, modalities):
+                 classification_head, max_seq_length, head_layer_sizes, num_classes, modalities, fusion_dim):
         super(ClassificationProcessor, self).__init__()
         self.dropout1 = nn.Dropout(dropout_rate)
         self.dropout2 = nn.Dropout(dropout_rate)
@@ -173,16 +174,16 @@ class ClassificationProcessor(nn.Module):
 
         # Classification heads or layers
         if classification_head:
-            self.combined_classifier = ClassificationHead(input_dim[0], max_seq_length * len(modalities)
+            self.combined_classifier = ClassificationHead(fusion_dim, max_seq_length * len(modalities)
                                                           , dropout_rate, head_layer_sizes)
-            self.classifier1 = ClassificationHead(input_dim[0], max_seq_length, dropout_rate, head_layer_sizes)
-            self.classifier2 = ClassificationHead(input_dim[0], max_seq_length, dropout_rate, head_layer_sizes)
-            self.classifier3 = ClassificationHead(input_dim[0], max_seq_length, dropout_rate, head_layer_sizes)
+            self.classifier1 = ClassificationHead(fusion_dim, max_seq_length, dropout_rate, head_layer_sizes)
+            self.classifier2 = ClassificationHead(fusion_dim, max_seq_length, dropout_rate, head_layer_sizes)
+            self.classifier3 = ClassificationHead(fusion_dim, max_seq_length, dropout_rate, head_layer_sizes)
         elif not classification_head:
-            self.combined_classifier = nn.Linear(2 * input_dim[0], num_classes)  # Combined classifier
-            self.classifier1 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 1
-            self.classifier2 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 2
-            self.classifier3 = nn.Linear(input_dim[0], num_classes)  # Separate classifier for modality 3
+            self.combined_classifier = nn.Linear(len(modalities) * fusion_dim, num_classes)  # Combined classifier
+            self.classifier1 = nn.Linear(fusion_dim, num_classes)  # Separate classifier for modality 1
+            self.classifier2 = nn.Linear(fusion_dim, num_classes)  # Separate classifier for modality 2
+            self.classifier3 = nn.Linear(fusion_dim, num_classes)  # Separate classifier for modality 3
 
         self.mode = mode
         self.classification_head = classification_head
@@ -245,7 +246,8 @@ class ClassificationProcessor(nn.Module):
 
 class AttentionBottleneckFusion(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_heads, num_layers, Lf, T, num_classes, device, max_seq_length,
-                 mode, dropout_rate, downsmaple_method, classification_head, head_layer_sizes, modalities):
+                 mode, dropout_rate, downsmaple_method, classification_head, head_layer_sizes, modalities,
+                 fusion_dim):
         super(AttentionBottleneckFusion, self).__init__()
 
         # CLS tokens for each modality
@@ -260,14 +262,14 @@ class AttentionBottleneckFusion(nn.Module):
 
         # Initialize ModalitySpecificTransformer
         self.modality_specific_transformer = ModalitySpecificTransformer(input_dim, hidden_dim, num_heads, num_layers,
-                                                                         T, downsmaple_method)
+                                                                         T, downsmaple_method, fusion_dim)
 
         # Initialize FusionTransformers
-        self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T)
+        self.fusion_transformer = FusionTransformers(input_dim, num_heads, hidden_dim, Lf, T, fusion_dim)
 
         self.classification_processor = ClassificationProcessor(input_dim, dropout_rate, mode, classification_head,
                                                                 max_seq_length, head_layer_sizes, num_classes,
-                                                                modalities)
+                                                                modalities, fusion_dim)
 
     def forward(self, z1, z2, z3=None):
         # Concat the CLS tokens for each modality

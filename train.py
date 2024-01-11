@@ -142,7 +142,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot, head_layer_sizes, modalities):
+         classification_head, plot, head_layer_sizes, modalities, fusion_dim):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -170,6 +170,10 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
         - plot: Whether to plot the loss and accuracy curves or not. bool = True or False
         - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
+        - modalities: List of modalities to use. it can be 2 or 3. ex: ['fau', 'thermal', 'depth']
+        - fusion_dim: Dimension of the fusion layer. For fau input dim is 22, for thermal input dim is 512, for depth
+        input dim is 128. So, to make it same for all modalities, we use fusion_dim. It will either reduce or increase
+        the dimension of the input modality to the fusion_dim.
     """
     # Initialize parameters and data
     input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
@@ -195,7 +199,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
                                       num_classes, device, max_seq_len+1, mode, dropout_rate,
                                       downsample_method, classification_head, head_layer_sizes,
-                                      modalities).to(device)
+                                      modalities, fusion_dim).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
@@ -254,6 +258,6 @@ if __name__ == '__main__':
                              dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
                              fusion_layers=2, n_bottlenecks=6, batch_size=256, num_epochs=150, verbose=True, fold=1,
                              device='cuda:0', save_model=False, max_seq_len=44, classification_head=True, plot=True,
-                             head_layer_sizes=[128, 32, 128], modalities=['fau', 'depth', 'thermal'])
+                             head_layer_sizes=[128, 32, 128], modalities=['fau', 'depth', 'thermal'], fusion_dim=64)
     # 5-fold cross val result: 29.03 + 31.02 + 27.5 + 27.82 + 27.97 = 143.34 / 5 = 28.668
     # 5-fold cross val result: 27.35 + 25.98 + 24.51 + 24.99 + 31.24 = 133.07 / 5 = 26.614
