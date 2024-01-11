@@ -41,7 +41,10 @@ def train(train_loader, model, criterion, optimizer, device, verbose, epoch, num
         optimizer.zero_grad()
 
         # Forward + Backward + Optimize
-        outputs = model(z1, z2)
+        if len(modalities) == 3:
+            outputs = model(z1, z2, z3)
+        elif len(modalities) == 2:
+            outputs = model(z1, z2)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -79,7 +82,10 @@ def val(val_loader, model, criterion, device, verbose, epoch, numEpochs, batch_s
     with torch.no_grad():
         for i, (z1, z2, z3,labels) in enumerate(val_loader, 0):
             z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
-            outputs = model(z1, z2)
+            if len(modalities) == 3:
+                outputs = model(z1, z2, z3)
+            elif len(modalities) == 2:
+                outputs = model(z1, z2)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
 
@@ -141,9 +147,12 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         Main function for training an Attention-based Bottleneck Fusion model.
 
         Parameters:
-        - hidden_dim: List of hidden dimensions for each modality and after fusion.
-        - num_heads: Number of attention heads for each modality and after fusion.
-        - num_layers: Number of transformer encoder layers for each modality.
+        - hidden_dim: List of hidden dimensions for modality-specific transformers, and fusion transformer. last arg is
+        the hidden dim for fusion transformer. ex: [512, 768, 352] for 2 modalities, 352 is the hidden dim for fusion.
+        - num_heads: Number of attention heads for modality-specific transformers, and fusion transformer. last arg is
+        the number of heads for fusion transformer. ex: [2, 2, 2, 3] for 3 modalities, 3 is the number of heads for
+        fusion transformer.
+        - num_layers: Number of transformer encoder layers for each modality. ex: [3, 5] for 2 modalities.
         - learning_rate: Learning rate for the optimizer.
         - dropout_rate: Dropout rate used in the model.
         - weight_decay: Weight decay factor for the optimizer.
@@ -185,7 +194,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # Initialize model, loss function, and optimizer
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
                                       num_classes, device, max_seq_len+1, mode, dropout_rate,
-                                      downsample_method, classification_head, head_layer_sizes).to(device)
+                                      downsample_method, classification_head, head_layer_sizes,
+                                      modalities).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
@@ -238,10 +248,12 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    # for i in range(8):
-    _, _, _, _, _ = main(hidden_dim=[128, 384, 160], num_heads=[2, 2, 11], num_layers=[1, 2], learning_rate=0.0005867622677559691,
-                         dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                         fusion_layers=3, n_bottlenecks=1, batch_size=256, num_epochs=150, verbose=True, fold=1,
-                         device='cuda:0', save_model=False, max_seq_len=36, classification_head=True, plot=True,
-                         head_layer_sizes=[352, 128, 64], modalities=['fau', 'depth'])
+    for i in range(8):
+        _, _, _, _, _ = main(hidden_dim=[512, 768, 352, 352], num_heads=[2, 2, 2, 2], num_layers=[3, 5, 4],
+                             learning_rate=0.0002102697582130624,
+                             dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
+                             fusion_layers=2, n_bottlenecks=6, batch_size=256, num_epochs=150, verbose=True, fold=1,
+                             device='cuda:0', save_model=False, max_seq_len=44, classification_head=True, plot=True,
+                             head_layer_sizes=[128, 32, 128], modalities=['fau', 'depth', 'thermal'])
     # 5-fold cross val result: 29.03 + 31.02 + 27.5 + 27.82 + 27.97 = 143.34 / 5 = 28.668
+    # 5-fold cross val result: 27.35 + 25.98 + 24.51 + 24.99 + 31.24 = 133.07 / 5 = 26.614
