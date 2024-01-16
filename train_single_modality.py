@@ -8,6 +8,7 @@ from model import SingleModalityTransformer
 from torch.utils.data import DataLoader
 from mint_pain_dataset_creator import create_dataset
 from utils import class_wise_accuracy, plot_accuracy, plot_loss, load_checkpoint, FocalLoss
+import torch.nn.functional as F
 
 
 # Set random seed for reproducibility
@@ -123,6 +124,8 @@ def test(test_loader, model, criterion, device, verbose, modality):
     correct = 0
     total = 0
     num_classes = 5
+    all_outputs = []
+    all_labels = []
     all_class_accuracies = []
     with torch.no_grad():
         for z1, z2, z3, labels in test_loader:
@@ -139,9 +142,10 @@ def test(test_loader, model, criterion, device, verbose, modality):
 
             loss = criterion(outputs, labels)
             running_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
+
+            # Store outputs
+            all_outputs.append(outputs.cpu())  # (batch_size, num_classes)
+            all_labels.append(labels.cpu())  # (batch_size,)
 
             # Calculate class-wise accuracy
             class_accuracies = class_wise_accuracy(outputs, labels, num_classes)
@@ -155,9 +159,9 @@ def test(test_loader, model, criterion, device, verbose, modality):
 
     if verbose:
         print('Test Loss: {:.4f}, Test Accuracy: {:.2f}%'.format(test_loss, overall_avg_accuracy))
-        print('Tes Class-wise Accuracy:', np.round(avg_class_accuracy, 2))
+        print('Test Class-wise Accuracy:', np.round(avg_class_accuracy, 2))
 
-    return test_loss, overall_avg_accuracy
+    return test_loss, overall_avg_accuracy, torch.cat(all_outputs, axis=0), torch.cat(all_labels, axis=0)
 
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
@@ -251,6 +255,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
                     'best_val_acc': best_val_acc,
                     'optimizer': optimizer.state_dict(),
                 }, is_best)
+                torch.save(model, 'checkpoints/model_best_' + modality + 'Only.pth')
                 if verbose:
                     print("Checkpoint saved: Epoch {}, Validation Accuracy {}".format(epoch + 1, best_val_acc))
 
@@ -361,19 +366,22 @@ def ensemble_single_modalities(hidden_dim, num_heads, num_layers, learning_rate,
 
 
 if __name__ == '__main__':
-    for i in range(5):
-        _, _, _, _, best_val_acc = main(hidden_dim=512, num_heads=4, num_layers=3, learning_rate=0.0001485687710129859,
-                                        dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
-                                        fusion_layers=None, n_bottlenecks=None, batch_size=256, num_epochs=150, verbose=True, fold=i,
-                                        device='cuda:1', save_model=False, max_seq_len=36, classification_head=True, plot=True,
-                                        head_layer_sizes=[160, 128, 112], output_dim=64, modality='depth')
-        print('Fold: {}, Best Validation Accuracy: {}'.format(i, best_val_acc))
+    # for i in range(5):
+    # _, _, _, _, best_val_acc = main(hidden_dim=92, num_heads=2, num_layers=2, learning_rate=0.00011,
+    #                                 dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
+    #                                 fusion_layers=None, n_bottlenecks=None, batch_size=256, num_epochs=200, verbose=True, fold=1,
+    #                                 device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
+    #                                 head_layer_sizes=[64, 128, 64], output_dim=22, modality='fau')
+    # print('Fold: {}, Best Validation Accuracy: {}'.format(i, best_val_acc))
 
 
-    # _, _, _, _, _ = main(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
-    #                      dropout_rate=0.0, weight_decay=0.0, downsample_method=None, mode=None,
-    #                      fusion_layers=None, n_bottlenecks=None, batch_size=64, num_epochs=150, verbose=True, fold=1,
-    #                      device='cuda:1', save_model=True, max_seq_len=40, classification_head=True, plot=True,
-    #                      head_layer_sizes=[352, 112, 48], output_dim=22, modality='fau')
+    ensemble_single_modalities(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
+                               dropout_rate=0.0, weight_decay=0.0, downsample_method=None, mode=None,
+                               fusion_layers=None, n_bottlenecks=None, batch_size=64, num_epochs=150, verbose=True, fold=1,
+                               device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
+                               head_layer_sizes=[352, 112, 48], output_dim=22, modality='depth')
     # output_dim=22 for FAU
     # output_dim=32 for thermal
+
+    # _, _, _, _, _ = main(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
+
