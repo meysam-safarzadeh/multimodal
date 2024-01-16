@@ -197,7 +197,7 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
     # Initialize model, loss function, and optimizer
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
-                                      num_classes, device, max_seq_len+1, mode, dropout_rate,
+                                      num_classes, device, max_seq_len, mode, dropout_rate,
                                       downsample_method, classification_head, head_layer_sizes,
                                       modalities, fusion_dim).to(device)
     criterion = nn.CrossEntropyLoss()

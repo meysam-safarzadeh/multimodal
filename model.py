@@ -270,16 +270,18 @@ class AttentionBottleneckFusion(nn.Module):
         self.classification_processor = ClassificationProcessor(input_dim, dropout_rate, mode, classification_head,
                                                                 max_seq_length, head_layer_sizes, num_classes,
                                                                 modalities, fusion_dim)
+        self.classification_head = classification_head
 
     def forward(self, z1, z2, z3=None):
-        # Concat the CLS tokens for each modality
-        cls_token1_embed = self.cls_token1.repeat(z1.size(0), 1, 1)
-        cls_token2_embed = self.cls_token2.repeat(z2.size(0), 1, 1)
-        cls_token3_embed = self.cls_token3.repeat(z3.size(0), 1, 1) if z3 is not None else None
+        if not self.classification_head:
+            # Concat the CLS tokens for each modality
+            cls_token1_embed = self.cls_token1.repeat(z1.size(0), 1, 1)
+            cls_token2_embed = self.cls_token2.repeat(z2.size(0), 1, 1)
+            cls_token3_embed = self.cls_token3.repeat(z3.size(0), 1, 1) if z3 is not None else None
 
-        z1 = torch.cat([cls_token1_embed, z1], dim=1)
-        z2 = torch.cat([cls_token2_embed, z2], dim=1)
-        z3 = torch.cat([cls_token3_embed, z3], dim=1) if z3 is not None else None
+            z1 = torch.cat([cls_token1_embed, z1], dim=1)
+            z2 = torch.cat([cls_token2_embed, z2], dim=1)
+            z3 = torch.cat([cls_token3_embed, z3], dim=1) if z3 is not None else None
 
         # Add positional encodings
         z1 = z1 + self.positional_encodings1[:, z1.size(1), :]
