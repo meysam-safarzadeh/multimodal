@@ -265,6 +265,101 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     return train_losses, val_losses, train_accuracies, val_accuracies, best_val_acc
 
 
+def ensemble_single_modalities(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
+                               fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
+                               classification_head, plot, head_layer_sizes, output_dim, modality):
+    """
+        Main function for training an Attention-based Bottleneck Fusion model.
+
+        Parameters:
+        - hidden_dim: List of hidden dimensions for each modality and after fusion.
+        - num_heads: Number of attention heads for each modality and after fusion.
+        - num_layers: Number of transformer encoder layers for each modality.
+        - learning_rate: Learning rate for the optimizer.
+        - dropout_rate: Dropout rate used in the model.
+        - weight_decay: Weight decay factor for the optimizer.
+        - downsample_method: Method for downsampling (e.g., 'Linear', 'MaxPool').
+        - mode: Mode of operation for the final classification layer ('concat' or 'separate').
+        - fusion_layers: Number of layers after modality fusion.
+        - n_bottlenecks: Number of bottleneck tokens in the model.
+        - batch_size: Batch size for training and validation.
+        - num_epochs: Number of epochs for training.
+        - verbose: Verbosity mode.
+        - fold: Fold number for cross-validation.
+        - device: Device to use for training and validation.
+        - save_model: Whether to save the model or not. If True, the model will be saved in the 'checkpoints' folder.
+        - max_seq_len: Maximum sequence length for the input sequences. The length of the sequences + 1 CLS token
+        - classification_head: Whether to use a classification head or not. If True, a classification head will be added.
+        - plot: Whether to plot the loss and accuracy curves or not. bool = True or False
+        - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
+        - output_dim: Output of the transformer will be downsampled to this dimension before the classification head.
+        - modality: Modality to use for training and validation. 'fau' or 'thermal' or 'depth'
+    """
+    # Initialize parameters and data
+    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
+    input_dim = input_dim_dic[modality]
+    num_classes = 5
+
+    # Initialize datasets and dataloaders
+    # Paths to your files
+    fau_file_path = 'embeddings_fau/FAU_embeddings_with_labels.csv'
+    thermal_file_path = 'embeddings_thermal/Thermal_embeddings_and_filenames_new.npz'
+    depth_file_path = 'embeddings_depth/Depth_embeddings_and_filenames_new.npz'
+    split_file_path = 'cross_validation_split_2.csv'
+
+    # Create the DataLoader
+    train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
+                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len,
+                                                              depth_file_path=depth_file_path)
+
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+    fau_model = torch.load('checkpoints/model_best_fauOnly.pth')
+    thermal_model = torch.load('checkpoints/model_best_thermalOnly.pth')
+    depth_model = torch.load('checkpoints/model_best_depthOnly.pth')
+
+    criterion = nn.CrossEntropyLoss()
+    _, _, output_fau, labels = test(val_loader, fau_model, criterion, device, True, 'fau')
+    _, _, output_depth, _ = test(val_loader, depth_model, criterion, device, True, 'depth')
+    _, _, output_thermal, _ = test(val_loader, thermal_model, criterion, device, True, 'thermal')
+    print(output_depth.shape)
+    # output_thermal = F.softmax(output_thermal, dim=1)
+    # output_depth = F.softmax(output_depth, dim=1)
+    # output_fau = F.softmax(output_fau, dim=1)
+    # output_fau[:, 0] *= 100
+    # output_fau[:, 4] *= 100
+    # output_fau[:, 2] *= 100
+    _, predicted_fau = torch.max(output_fau, 1)
+    _, predicted_depth = torch.max(output_depth, 1)
+    _, predicted_thermal = torch.max(output_thermal, 1)
+
+    # output_depth[:, 3] *= 100
+    # output_thermal[:, 1] *= 100
+
+
+    predicted = (predicted_depth + predicted_fau)/2
+    _, predicted = torch.max(final_output, 1)
+
+    from sklearn.metrics import confusion_matrix
+    cm = confusion_matrix(labels, np.round(predicted), labels=np.arange(num_classes))
+    cm2 = confusion_matrix(labels[predicted_fau != 0], predicted_depth[predicted_fau != 0], labels=np.arange(num_classes))
+    cm3 = confusion_matrix(labels[predicted_fau != 0], predicted_thermal[predicted_fau != 0], labels=np.arange(num_classes))
+
+    # cm3 = confusion_matrix(labels[predicted_fau != 0 & predicted_depth != 0],
+                           # predicted_thermal[predicted_fau != 0 & predicted_depth != 0], labels=np.arange(num_classes))
+
+    predict_final = np.round((predicted_depth + predicted_thermal + predicted_fau)/3)
+    class_accuracies = cm.diagonal() / cm.sum(axis=1).clip(min=1)
+
+    # class_accuracies = class_wise_accuracy(final_output, labels, 5)
+    print(class_accuracies, np.mean(class_accuracies))
+
+    # 0.568 * (187+36+39+35+32)
+    # 329 +
+
+
 if __name__ == '__main__':
     for i in range(5):
         _, _, _, _, best_val_acc = main(hidden_dim=512, num_heads=4, num_layers=3, learning_rate=0.0001485687710129859,
