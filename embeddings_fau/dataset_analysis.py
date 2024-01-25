@@ -30,10 +30,11 @@ for label in np.unique(y):
     indices = np.where(y == label)
     plt.scatter(X_reduced[indices, 0], X_reduced[indices, 1], label=label, alpha=0.5)
 
-plt.title('UMAP projection of the dataset')
+plt.title('UMAP projection of FAU embeddings')
 plt.xlabel('UMAP 1')
 plt.ylabel('UMAP 2')
 plt.legend(title='Label')
+plt.savefig('/home/meysam/Pictures/FAU_embeddings_UMAP.png', format='png')
 plt.show()
 plt.close()
 
@@ -48,8 +49,9 @@ for label in np.unique(y):
     indices = np.where(y == label)
     plt.scatter(X_reduced_pca[indices, 0], X_reduced_pca[indices, 1], label=label, alpha=0.5)
 
-plt.title('PCA projection of the dataset')
+plt.title('PCA projection of FAU embeddings')
 plt.xlabel('PC1')
 plt.ylabel('PC2')
 plt.legend(title='Label')
+plt.savefig('/home/meysam/Pictures/FAU_embeddings_PCA.png', format='png')
 plt.show()
