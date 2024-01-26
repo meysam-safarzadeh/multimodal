@@ -102,7 +102,7 @@ class MintPainDataset(Dataset):
 
 
 def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size, max_seq_len,
-                   depth_file_path):
+                   depth_file_path, sub_independent):
     """
     Create dataset for the FAU and thermal embeddings' dataset, split into train, validation, and test sets for
     the given iteration.
@@ -132,6 +132,9 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     train_df = df[df['sub'].isin(train_subjects)].reset_index(drop=True)
     val_df = df[df['sub'].isin(val_subjects)].reset_index(drop=True)
     test_df = df[df['sub'].isin(test_subjects)].reset_index(drop=True)
+
+    # split the dataset into train and validation sets separately for each subject
+    train_df, val_df= split_dataframe(df) if sub_independent else (train_df, val_df)
 
     # Get min and max values for each modality
     fau_min_max_vals, thermal_min_max_vals , depth_min_max_vals = get_min_max_for_each_modality(train_df,
@@ -194,7 +197,34 @@ def get_min_max_for_each_modality(train_df, thermal_file_path, depth_file_path):
     return (fau_min_vals, fau_max_vals), (thermal_min_vals, thermal_max_vals), (depth_min_vals, depth_max_vals)
 
 
-# for i, (fau_emb, thermal_emb, labels) in enumerate(dataloader):
-#     print(f"Batch {i}: Shapes - FAU: {fau_emb.shape}, Thermal: {thermal_emb.shape}, Labels: {labels.shape}")
-#     if i == 10:
-#         break
+def split_dataframe(df):
+    """
+    Split the DataFrame into 90% training and 10% validation.
+    :param df: The input DataFrame.
+    :return: df_val, df_train: The validation and training DataFrames.
+    """
+    df_val = pd.DataFrame()
+    df_train = pd.DataFrame()
+
+    # Iterate over each 'sub'
+    for sub, sub_group in df.groupby('sub'):
+        # Iterate over each label from 0 to 4
+        for label in range(5):
+            # Identify groups where the current label is present
+            label_group_indices = sub_group[sub_group['label'] == label].groupby(['trial', 'sweep', 'label']).ngroup()
+
+            # Calculate 10% of these groups.
+            ten_percent_size = int(np.ceil(len(label_group_indices.unique()) * 0.1))
+
+            # Randomly select 10% of these groups
+            groups_10_percent = np.random.choice(label_group_indices.unique(), size=ten_percent_size, replace=False)
+
+            # Separate 10% and 90% groups
+            group_10_percent_df = sub_group[(sub_group['label'] == label) & label_group_indices.isin(groups_10_percent)]
+            group_90_percent_df = sub_group[(sub_group['label'] == label) & ~label_group_indices.isin(groups_10_percent)]
+
+            # Append to the respective DataFrames
+            df_val = pd.concat([df_val, group_10_percent_df])
+            df_train = pd.concat([df_train, group_90_percent_df])
+
+    return df_train.reset_index(drop=True), df_val.reset_index(drop=True)

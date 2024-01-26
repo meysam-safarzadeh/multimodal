@@ -142,7 +142,7 @@ def test(test_loader, model, criterion, device, verbose):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot, head_layer_sizes, modalities, fusion_dim):
+         classification_head, plot, head_layer_sizes, modalities, fusion_dim, sub_independent):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -189,7 +189,8 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
                                                               fold, batch_size=batch_size, max_seq_len=max_seq_len,
-                                                              depth_file_path=depth_file_path)
+                                                              depth_file_path=depth_file_path,
+                                                              sub_independent=sub_independent)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -253,11 +254,12 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 if __name__ == '__main__':
     for i in range(8):
-        _, _, _, _, _ = main(hidden_dim=[512, 768, 352, 352], num_heads=[2, 2, 2, 2], num_layers=[3, 5, 4],
-                             learning_rate=0.0002102697582130624,
-                             dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                             fusion_layers=2, n_bottlenecks=6, batch_size=256, num_epochs=150, verbose=True, fold=1,
+        _, _, _, _, _ = main(hidden_dim=[320, 768, 640, 352], num_heads=[64, 2, 64, 4], num_layers=[2, 3, 1],
+                             learning_rate=0.0001678,
+                             dropout_rate=0.1, weight_decay=0.01, downsample_method='Linear', mode='separate',
+                             fusion_layers=2, n_bottlenecks=4, batch_size=256, num_epochs=150, verbose=True, fold=0,
                              device='cuda:0', save_model=False, max_seq_len=44, classification_head=True, plot=True,
-                             head_layer_sizes=[128, 32, 128], modalities=['fau', 'depth', 'thermal'], fusion_dim=64)
+                             head_layer_sizes=[64, 96, 64], modalities=['depth', 'fau', 'thermal'], fusion_dim=16,
+                             sub_independent=True)
     # 5-fold cross val result: 29.03 + 31.02 + 27.5 + 27.82 + 27.97 = 143.34 / 5 = 28.668
     # 5-fold cross val result: 27.35 + 25.98 + 24.51 + 24.99 + 31.24 = 133.07 / 5 = 26.614
