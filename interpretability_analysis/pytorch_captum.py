@@ -10,7 +10,6 @@ import seaborn as sns
 import torch.nn as nn
 import shap
 
-
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 os.chdir(parent_dir)
@@ -166,7 +165,7 @@ def compute_feature_importances(model, data_loader, device, target):
     count = 0
 
     for data in data_loader:
-        z1, z2, labels = data
+        z1, z2, z3, labels = data
 
         # Filter out the samples with the target class
         z1 = z1[labels == target]
@@ -249,20 +248,25 @@ def compute_gradient_explainer(model, data_loader, device, target):
 
 def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
                fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-               classification_head, plot, head_layer_sizes):
+               classification_head, plot, head_layer_sizes, modalities, fusion_dim, sub_independent, best_model_path):
+
     # Initialize parameters and data
-    input_dim = [22, 512]
+    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
+    input_dim = [input_dim_dic[modality] for modality in modalities]
     num_classes = 5
 
     # Initialize datasets and dataloaders
     # Paths to your files
-    fau_file_path = 'FAU_embedding/FAU_embeddings_with_labels.csv'
-    thermal_file_path = 'thermal_embedding/Thermal_embeddings_and_filenames_new.npz'
+    fau_file_path = 'embeddings_fau/FAU_embeddings_with_labels.csv'
+    thermal_file_path = 'embeddings_thermal/Thermal_embeddings_and_filenames_new.npz'
+    depth_file_path = 'embeddings_depth/Depth_embeddings_and_filenames_new.npz'
     split_file_path = 'cross_validation_split_2.csv'
 
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
-                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len)
+                                                              fold, batch_size=batch_size, max_seq_len=max_seq_len,
+                                                              depth_file_path=depth_file_path,
+                                                              sub_independent=sub_independent)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -270,10 +274,12 @@ def load_model(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, w
 
     # Assuming you have a data_loader for your dataset
     model = AttentionBottleneckFusion(input_dim, hidden_dim, num_heads, num_layers, fusion_layers, n_bottlenecks,
-                                      num_classes, device, max_seq_len + 1, mode, dropout_rate,
-                                      downsample_method, classification_head, head_layer_sizes).to(device)
+                                      num_classes, device, max_seq_len, mode, dropout_rate,
+                                      downsample_method, classification_head, head_layer_sizes,
+                                      modalities, fusion_dim).to(device)
+
     # Load the model
-    best_model_path = 'checkpoints/model_best.pth.tar'
+    best_model_path = 'checkpoints/model_best.pth.tar' if best_model_path is None else best_model_path
     model.load_state_dict(torch.load(best_model_path)['state_dict'])
 
     return model, train_loader
@@ -302,8 +308,8 @@ if __name__ == '__main__':
                                         fusion_layers=2, n_bottlenecks=4, batch_size=40, num_epochs=150, verbose=True,
                                         fold=1,
                                         device=device, save_model=True, max_seq_len=40, classification_head=True,
-                                        plot=True,
-                                        head_layer_sizes=[352, 112, 48])
+                                        plot=True, head_layer_sizes=[352, 112, 48], modalities=['fau', 'thermal'],
+                                        fusion_dim=64, sub_independent=False, best_model_path=None)
 
         # Compute the feature importances using Integrated Gradients
         _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device, target)
