@@ -72,12 +72,12 @@ if __name__ == '__main__':
     model, data_loader = load_model(hidden_dim=[320, 768, 640, 352], num_heads=[2, 4, 64, 16], num_layers=[2, 3, 1],
                                     learning_rate=0.0004,
                                     dropout_rate=0.03, weight_decay=0.0008, downsample_method='Linear', mode='separate',
-                                    fusion_layers=7, n_bottlenecks=5, batch_size=1024, num_epochs=150, verbose=True,
-                                    fold=0,
+                                    fusion_layers=7, n_bottlenecks=5, batch_size=750, num_epochs=150, verbose=True,
+                                    fold=1,
                                     device=device, save_model=True, max_seq_len=36, classification_head=True,
                                     plot=True,
                                     head_layer_sizes=[64, 32, 16], modalities=modalities,
-                                    fusion_dim=64, sub_independent=True, best_model_path=best_model_path)
+                                    fusion_dim=64, sub_independent=False, best_model_path=best_model_path)
 
     print(model)
 
@@ -99,11 +99,11 @@ if __name__ == '__main__':
     umap_model = umap.UMAP(n_components=3, n_jobs=-1)
     X_reduced = umap_model.fit_transform(X)
 
+    # Plotting 2D UMAP projection results
     plot_projection('3D UMAP projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced,
                 '/home/meysam/Pictures/fau_depth_thermal_embeddings_UMAP.png', 'UMAP 1', 'UMAP 2')
 
-    # Assuming X_reduced_pca contains three components and y contains the labels
-
+    # Plot 3D UMAP projection results
     fig = go.Figure()
     for i, label in enumerate(np.unique(y)):
         indices = np.where(y == label)[0]
@@ -117,11 +117,11 @@ if __name__ == '__main__':
         ))
 
     fig.update_layout(
-        title='3D UMAP projection of Depth embeddings',
+        title='3D UMAP projection of final embeddings (FAU, Depth, and Thermal)',
         scene=dict(
-            xaxis=dict(range=x_range, title='UMAP 1'),
-            yaxis=dict(range=y_range, title='UMAP 2'),
-            zaxis=dict(range=z_range, title='UMAP 3')
+            xaxis=dict(title='UMAP 1'),
+            yaxis=dict(title='UMAP 2'),
+            zaxis=dict(title='UMAP 3')
         ),
         legend_title="Label"
     )
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     fig.show()
 
     # Applying PCA for dimensionality reduction
-    pca_model = PCA(n_components=2)
+    pca_model = PCA(n_components=3)
     X_reduced_pca = pca_model.fit_transform(X)
 
     # Plotting PCA results
