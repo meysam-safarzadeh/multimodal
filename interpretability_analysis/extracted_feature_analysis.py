@@ -93,6 +93,7 @@ if __name__ == '__main__':
     # Move the tensor to CPU and convert to a NumPy array
     X = concatenated_tensor.cpu().numpy()
     y = np.int64(np.array(labels.cpu()))
+    color_map = ['#0000FF', '#5555FF', '#AAAAFF', '#FF5555', '#FF0000']  # Blue to Red
 
     # UMAP reduction to two dimensions
     umap_model = umap.UMAP(n_components=3, n_jobs=-1)
@@ -104,20 +105,14 @@ if __name__ == '__main__':
     # Assuming X_reduced_pca contains three components and y contains the labels
 
     fig = go.Figure()
-
-    # Calculate the range for each axis
-    x_range = [np.min(X_reduced[:, 0]), np.max(X_reduced[:, 0])]
-    y_range = [np.min(X_reduced[:, 1]), np.max(X_reduced[:, 1])]
-    z_range = [np.min(X_reduced[:, 2]), np.max(X_reduced[:, 2])]
-
-    for label in np.unique(y):
+    for i, label in enumerate(np.unique(y)):
         indices = np.where(y == label)[0]
         fig.add_trace(go.Scatter3d(
             x=X_reduced[indices, 0],
             y=X_reduced[indices, 1],
             z=X_reduced[indices, 2],
             mode='markers',
-            marker=dict(size=5, opacity=0.5),
+            marker=dict(size=5, opacity=0.5, color=color_map[i]),
             name=str(label)
         ))
 
