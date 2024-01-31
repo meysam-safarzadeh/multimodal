@@ -47,6 +47,23 @@ def extract_features_from_layers(model, data_loader, layer_names, device, modali
     return features, labels
 
 
+def plot_projection(title, labels, X_reduced, save_dir, xlabel, ylabel):
+    plt.figure(figsize=(10, 8), dpi=300)
+    ax = plt.axes()  # Creating a 3D plot
+    color_map = ['#0000FF', '#5555FF', '#AAAAFF', '#FF5555', '#FF0000']  # Blue to Red
+    for i, label in enumerate(np.unique(labels)):
+        indices = np.where(labels == label)
+        ax.scatter(X_reduced[indices, 0], X_reduced[indices, 1], label=label, alpha=0.5, color=color_map[i])
+
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend(title='Label')
+    plt.savefig(save_dir, format='png')
+    plt.show()
+    plt.close()
+
+
 if __name__ == '__main__':
     # Load the model and data loader
     device = torch.device('cuda:0')
@@ -81,21 +98,8 @@ if __name__ == '__main__':
     umap_model = umap.UMAP(n_components=3, n_jobs=-1)
     X_reduced = umap_model.fit_transform(X)
 
-    # Plotting
-    plt.figure(figsize=(10, 8), dpi=300)
-    ax = plt.axes()  # Creating a 3D plot
-    for label in np.unique(y):
-        indices = np.where(y == label)
-        ax.scatter(X_reduced[indices, 0], X_reduced[indices, 1],label=label, alpha=0.5)
-
-    ax.set_title('3D PCA projection of Depth embeddings')
-    ax.set_xlabel('UMAP 1')
-    ax.set_ylabel('UMAP 2')
-    # ax.set_zlabel('PC3')
-    ax.legend(title='Label')
-    plt.savefig('/home/meysam/Pictures/fau_depth_thermal_embeddings_UMAP.png', format='png')
-    plt.show()
-    plt.close()
+    plot_projection('3D UMAP projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced,
+                '/home/meysam/Pictures/fau_depth_thermal_embeddings_UMAP.png', 'UMAP 1', 'UMAP 2')
 
     # Assuming X_reduced_pca contains three components and y contains the labels
 
@@ -134,15 +138,5 @@ if __name__ == '__main__':
     X_reduced_pca = pca_model.fit_transform(X)
 
     # Plotting PCA results
-    plt.figure(figsize=(10, 8), dpi=300)
-    for label in np.unique(y):
-        indices = np.where(y == label)
-        plt.scatter(X_reduced_pca[indices, 0], X_reduced_pca[indices, 1], label=label, alpha=0.5)
-
-    plt.title('PCA projection of Depth embeddings')
-    plt.xlabel('PC1')
-    plt.ylabel('PC2')
-    plt.legend(title='Label')
-    plt.savefig('/home/meysam/Pictures/fau_depth_thermal_embeddings_PCA.png', format='png')
-    plt.show()
-
+    plot_projection('3D PCA projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced_pca,
+                '/home/meysam/Pictures/fau_depth_thermal_embeddings_PCA.png', 'PC1', 'PC2')
