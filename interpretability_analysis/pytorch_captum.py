@@ -33,7 +33,7 @@ def get_average_importance(attr):
     return feature_importance
 
 
-def plot_interpretation(attr_z1, attr_z2):
+def plot_feature_importance(attr_z1, attr_z2):
     # Get the average attributions across the sequence dimension and then across the batch dimension while ignoring the
     # padding tokens
     feature_importance_z1 = get_average_importance(attr_z1)
@@ -314,7 +314,7 @@ if __name__ == '__main__':
         # Compute the feature importances using Integrated Gradients
         _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device, target)
         print(attributes_1.shape, attributes_2.shape)
-        plot_interpretation(attributes_1, attributes_2)
+        plot_feature_importance(attributes_1, attributes_2)
 
         # Using list comprehension to collect all z1 tensors from the data loader and concatenate them
         all_z1 = [z1[labels == target] for z1, _, labels in data_loader]
