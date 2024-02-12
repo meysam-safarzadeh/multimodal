@@ -184,7 +184,9 @@ def compute_feature_importances(model, data_loader, device, target, modalities):
 
         # Calculate Integrated Gradients
         attributes, _ = integrated_gradients.attribute(inputs=(z1, z2, z3), baselines=(baseline1, baseline2, baseline3),
-                                                       target=target, return_convergence_delta=True)
+                                                       target=target, return_convergence_delta=True) if len(modalities) == 3 else \
+            integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2), target=target,
+                                             return_convergence_delta=True)
 
         # Compute average importance for the current batch
         feature_importance_1 = get_average_importance(attributes[0])
