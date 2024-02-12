@@ -9,6 +9,7 @@ import numpy as np
 import seaborn as sns
 import torch.nn as nn
 import shap
+from utils import prepare_z
 
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -146,7 +147,7 @@ def attention_map_extraction(model, data_loader, device):
     return
 
 
-def compute_feature_importances(model, data_loader, device, target):
+def compute_feature_importances(model, data_loader, device, target, modalities):
     """
     Compute the feature importances using Integrated Gradients. The average importance for each feature is computed over
     all samples in the dataset.
@@ -162,56 +163,67 @@ def compute_feature_importances(model, data_loader, device, target):
     total_importance_2 = None
     all_attributes_1 = []
     all_attributes_2 = []
+    all_attributes_3 = [] if len(modalities) == 3 else None
     count = 0
 
     for data in data_loader:
         z1, z2, z3, labels = data
+        z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
 
         # Filter out the samples with the target class
         z1 = z1[labels == target]
         z2 = z2[labels == target]
+        z3 = z3[labels == target]
         labels = labels[labels == target]
 
-        z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+        z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device)
 
         baseline1 = torch.zeros_like(z1, device=device)
         baseline2 = torch.zeros_like(z2, device=device)
+        baseline3 = torch.zeros_like(z3, device=device)
 
         # Calculate Integrated Gradients
-        attributes, _ = integrated_gradients.attribute(inputs=(z1, z2), baselines=(baseline1, baseline2),
+        attributes, _ = integrated_gradients.attribute(inputs=(z1, z2, z3), baselines=(baseline1, baseline2, baseline3),
                                                        target=target, return_convergence_delta=True)
 
         # Compute average importance for the current batch
         feature_importance_1 = get_average_importance(attributes[0])
         feature_importance_2 = get_average_importance(attributes[1])
+        feature_importance_3 = get_average_importance(attributes[2]) if len(modalities) == 3 else None
 
         # Accumulate feature importance
         if total_importance_1 is None:
             total_importance_1 = feature_importance_1
             total_importance_2 = feature_importance_2
+            total_importance_3 = feature_importance_3 if len(modalities) == 3 else None
         else:
             total_importance_1 += feature_importance_1
             total_importance_2 += feature_importance_2
+            total_importance_3 += feature_importance_3 if len(modalities) == 3 else None
 
         # Store attributes for each batch
         all_attributes_1.append(attributes[0])
         all_attributes_2.append(attributes[1])
+        all_attributes_3.append(attributes[2]) if len(modalities) == 3 else None
 
         count += 1
 
     # Concatenate attributes from all batches
     all_attributes_1 = torch.cat(all_attributes_1, dim=0)
     all_attributes_2 = torch.cat(all_attributes_2, dim=0)
+    all_attributes_3 = torch.cat(all_attributes_3, dim=0) if len(modalities) == 3 else None
 
     # Compute the average over all batches
     avg_importance_1 = total_importance_1 / count
     avg_importance_2 = total_importance_2 / count
+    avg_importance_3 = total_importance_3 / count if len(modalities) == 3 else None
 
     # Print the average feature importances
     print("Average Feature Importance for z1:", avg_importance_1)
     print("Average Feature Importance for z2:", avg_importance_2)
+    print("Average Feature Importance for z3:", avg_importance_3) if len(modalities) == 3 else None
 
-    return avg_importance_1, avg_importance_2, all_attributes_1, all_attributes_2
+    return [avg_importance_1, avg_importance_2, avg_importance_3], [all_attributes_1, all_attributes_2, all_attributes_3]
 
 
 def compute_gradient_explainer(model, data_loader, device, target):
@@ -300,29 +312,29 @@ if __name__ == '__main__':
         # Set the target class for computing the feature importances
         target = i
         device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+        modalities = ['fau', 'depth', 'thermal']
 
         # Load the model and data loader
-        model, data_loader = load_model(hidden_dim=[96, 512, 384], num_heads=[2, 64, 2], num_layers=[2, 3],
-                                        learning_rate=3e-4,
-                                        dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode='separate',
-                                        fusion_layers=2, n_bottlenecks=4, batch_size=40, num_epochs=150, verbose=True,
-                                        fold=1,
-                                        device=device, save_model=True, max_seq_len=40, classification_head=True,
-                                        plot=True, head_layer_sizes=[352, 112, 48], modalities=['fau', 'thermal'],
-                                        fusion_dim=64, sub_independent=False, best_model_path=None)
+        model, data_loader = load_model(hidden_dim=[320, 768, 640, 352], num_heads=[2, 4, 64, 16], num_layers=[2, 3, 1],
+                             learning_rate=0.0004,
+                             dropout_rate=0.03, weight_decay=0.0008, downsample_method='Linear', mode='separate',
+                             fusion_layers=7, n_bottlenecks=5, batch_size=128, num_epochs=200, verbose=True, fold=1,
+                             device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
+                             head_layer_sizes=[64, 32, 16], modalities=modalities, fusion_dim=64,
+                             sub_independent=False, best_model_path='/home/meysam/NursingSchool/code/checkpoints/model_best_fau_depth_thermal.pth.tar')
 
         # Compute the feature importances using Integrated Gradients
-        _, _, attributes_1, attributes_2 = compute_feature_importances(model, data_loader, device, target)
-        print(attributes_1.shape, attributes_2.shape)
-        plot_feature_importance(attributes_1, attributes_2)
+        _, attributes = compute_feature_importances(model, data_loader, device, target, modalities=modalities)
+        print(attributes[0].shape, attributes[1].shape)
+        plot_feature_importance(attributes[0], attributes[1])
 
         # Using list comprehension to collect all z1 tensors from the data loader and concatenate them
-        all_z1 = [z1[labels == target] for z1, _, labels in data_loader]
+        all_z1 = [z1[labels == target] for z1, _, _, labels in data_loader]
         all_z1 = torch.cat(all_z1, dim=0)
 
         # Plot the feature importance using SHAP
         reshaped_z1 = all_z1.view(-1, 22)
-        reshaped_attributes = attributes_1.view(-1, 22).cpu()
+        reshaped_attributes = attributes[0].view(-1, 22).cpu()
 
         reshaped_z1 = reshaped_z1[reshaped_attributes.sum(dim=1) != 0]
         reshaped_attributes = reshaped_attributes[reshaped_attributes.sum(dim=1) != 0]
