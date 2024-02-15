@@ -367,7 +367,7 @@ if __name__ == '__main__':
     sns.heatmap(attributes_all_classes, annot=True, cmap='coolwarm', center=0)
     plt.title('Global Feature Importance per Class')
     plt.ylabel('Class Index')
-    plt.xticks(range(len(features)), features, rotation=45, ha='right')
+    plt.xticks(np.arange(len(features)) + 0.5, features, rotation=45, ha='right')
     plt.tight_layout()
     plt.show()
 
