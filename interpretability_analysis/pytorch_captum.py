@@ -127,6 +127,8 @@ def patch_attention(m):
 
 def attention_map_extraction(model, data_loader, device, modalities):
     model.eval()
+    sample_num = 37
+
     # Assuming the first batch in the loader for demonstration
     data = next(iter(data_loader))
     z1, z2, z3, labels = data
@@ -156,7 +158,7 @@ def attention_map_extraction(model, data_loader, device, modalities):
     # Visualize the attention maps
     # loop through the keys in hook_handles or specify layer names
     for i, attention in enumerate(save_output.outputs):
-        plot_attention_map(attention[37, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
+        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
 
     return
 
