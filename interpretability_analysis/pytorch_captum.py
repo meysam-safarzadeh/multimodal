@@ -155,8 +155,10 @@ def attention_map_extraction(model, data_loader, device, modalities):
     for i, output in enumerate(save_output.outputs):
         print(f"Output {i + 1} shape: {output.shape}")
 
-    # Visualize the attention maps
-    # loop through the keys in hook_handles or specify layer names
+    # Visualize the input features
+    plot_input(z1[sample_num], title="Input Features z1")
+
+    # Visualize the attention maps, loop through the keys in hook_handles or specify layer names
     for i, attention in enumerate(save_output.outputs):
         plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
 
