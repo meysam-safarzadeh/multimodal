@@ -114,24 +114,27 @@ def patch_attention(m):
     m.forward = wrap
 
 
-def attention_map_extraction(model, data_loader, device):
+def attention_map_extraction(model, data_loader, device, modalities):
     model.eval()
     # Assuming the first batch in the loader for demonstration
     data = next(iter(data_loader))
-    z1, z2, labels = data
-    z1, z2, labels = z1.to(device), z2.to(device), labels.to(device)
+    z1, z2, z3, labels = data
+    z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
+    z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device)
 
     # Register hooks to capture the attention weights
     save_output = SaveOutput()
     hook_handles = []
+    module_name = []
     for name, module in model.named_modules():
         if isinstance(module, nn.MultiheadAttention):
             patch_attention(module)
             handle = module.register_forward_hook(save_output)
             hook_handles.append(handle)
+            module_name.append(name)
 
     # Forward pass to get the model outputs through the forward hooks
-    output = model(z1, z2)
+    output = model(z1, z2, z3)
 
     # Print the shapes of the attention maps
     print(f"Number of hook handles: {len(hook_handles)}")
@@ -351,6 +354,7 @@ if __name__ == '__main__':
                           max_display=22, plot_type='layered_violin')
 
         # compute_gradient_explainer(model, data_loader, device, target)
+        # attention_map_extraction(model, data_loader, device, modalities)
 
         # Store the global feature importance for all classes
         attributes_all_classes.append(global_attributes)
