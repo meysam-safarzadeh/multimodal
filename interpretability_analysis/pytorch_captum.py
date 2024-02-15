@@ -92,6 +92,17 @@ def plot_attention_map(attention, title):
     plt.show()
 
 
+def plot_input(input, title="Input Features"):
+    input = input.cpu().detach().numpy()
+    plt.figure(figsize=(16, 8), dpi=300)
+    sns.heatmap(input.T, annot=False, cmap='viridis')
+    plt.title(title)
+    plt.ylabel('Feature Index')
+    plt.xlabel('Token Index (frame index)')
+    plt.yticks(np.arange(len(features)) + 0.5, features, rotation=0, ha='right')
+    plt.show()
+
+
 class SaveOutput:
     def __init__(self):
         self.outputs = []
