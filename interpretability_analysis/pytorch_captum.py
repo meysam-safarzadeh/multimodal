@@ -412,7 +412,7 @@ if __name__ == '__main__':
                           max_display=22, plot_type='layered_violin')
 
         # compute_gradient_explainer(model, data_loader, device, target)
-        # attention_map_extraction(model, data_loader, device, modalities)
+        attention_map_extraction(model, data_loader, device, modalities)
 
         # Store the global feature importance for all classes
         attributes_all_classes.append(global_attributes)
