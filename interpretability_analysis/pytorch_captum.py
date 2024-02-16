@@ -11,6 +11,7 @@ import torch.nn as nn
 import shap
 from utils import prepare_z
 from itertools import islice
+from matplotlib.gridspec import GridSpec
 
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -104,6 +105,45 @@ def plot_input(input, title="Input Features"):
     plt.show()
 
 
+def plot_input_with_attention(input, attention, title="Input Features"):
+    input = input.cpu().detach().numpy()
+    attention = attention.cpu().detach().numpy()
+
+    attention_mean = attention.mean(axis=0, keepdims=True)
+    data = np.concatenate((input.T, attention_mean), axis=0)
+
+    # Assuming 'data' is your data matrix and 'features' is your list of feature names
+    main_data = data[:-1]  # All but the last row
+    final_row = data[-1:]  # Just the last row
+
+    # Create a figure for the combined heatmaps
+    fig = plt.figure(figsize=(16, 9), dpi=300)
+    gs = GridSpec(2, 2, width_ratios=[20, 1], height_ratios=[data.shape[0] - 1, 1], hspace=0.05, wspace=0.05)
+
+    # Plot the main heatmap
+    ax_main = plt.subplot(gs[0, 0])
+    sns_heatmap_main = sns.heatmap(main_data, annot=False, cmap='viridis', cbar=False, ax=ax_main)
+    ax_main.set_title(title)
+    ax_main.set_ylabel('Feature Index')
+    ax_main.set_xticks([])  # Hide x-axis labels on the main heatmap
+    ax_main.set_yticks(np.arange(len(features)) + 0.5)
+    ax_main.set_yticklabels(features, rotation=0, ha='right')
+
+    # Plot the final row heatmap
+    ax_final = plt.subplot(gs[1, 0])
+    sns_heatmap_final = sns.heatmap(final_row, annot=False, cmap='viridis', cbar=False, ax=ax_final)
+    ax_final.set_xlabel('Token Index (frame index)')
+    ax_final.set_yticks([0.5])
+    ax_final.set_yticklabels(['Attention'], rotation=0, ha='right')
+
+    # Add color bar for the main heatmap
+    cbar_ax_main = plt.subplot(gs[0, 1])
+    plt.colorbar(sns_heatmap_main.collections[0], cax=cbar_ax_main)
+    cbar_ax_main.set_ylabel('Scale for Main Data')
+
+    plt.tight_layout()
+    plt.show()
+
 class SaveOutput:
     def __init__(self):
         self.outputs = []
@@ -161,8 +201,10 @@ def attention_map_extraction(model, data_loader, device, modalities):
 
     # Visualize the attention maps, loop through the keys in hook_handles or specify layer names
     for i, attention in enumerate(save_output.outputs):
-        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1}")
-
+        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1} head 1")
+        plot_attention_map(attention[sample_num, 1].cpu().detach().numpy(), f"Attention Map {i + 1} head 2")
+        plot_input_with_attention(z1[sample_num], attention[sample_num, 0], title=f"Input Features z1 with Attention Map {i + 1} head 1")
+        plot_input_with_attention(z1[sample_num], attention[sample_num, 1], title=f"Input Features z1 with Attention Map {i + 1} head 2")
     return
 
 
