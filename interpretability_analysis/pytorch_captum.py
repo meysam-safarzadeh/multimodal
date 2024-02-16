@@ -10,6 +10,7 @@ import seaborn as sns
 import torch.nn as nn
 import shap
 from utils import prepare_z
+from itertools import islice
 
 # Append the parent directory to sys.path
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -127,10 +128,10 @@ def patch_attention(m):
 
 def attention_map_extraction(model, data_loader, device, modalities):
     model.eval()
-    sample_num = 37
+    sample_num = 38
 
     # Assuming the first batch in the loader for demonstration
-    data = next(iter(data_loader))
+    data = next(islice(data_loader, 5, 6))
     z1, z2, z3, labels = data
     z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
     z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device)
