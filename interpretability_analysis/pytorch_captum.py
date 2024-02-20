@@ -169,12 +169,18 @@ def patch_attention(m):
 def attention_map_extraction(model, data_loader, device, modalities):
     model.eval()
     sample_num = 38
+    batch_num = 6
+    batch_size = 128
 
     # Assuming the first batch in the loader for demonstration
-    data = next(islice(data_loader, 5, 6))
+    data = next(islice(data_loader, batch_num - 1, batch_num))
     z1, z2, z3, labels = data
     z1, z2, z3, labels = prepare_z(z1, z2, z3, labels, device, modalities)
     z1, z2, z3, labels = z1.to(device), z2.to(device), z3.to(device), labels.to(device)
+    sequences = data_loader.dataset.sequences
+    fau_indices = sequences[list(sequences)[(batch_num-1) * batch_size + sample_num]]
+    sequence_of_interest = data_loader.dataset.FAU_dataframe.iloc[fau_indices]
+    print(sequence_of_interest)
 
     # Register hooks to capture the attention weights
     save_output = SaveOutput()
