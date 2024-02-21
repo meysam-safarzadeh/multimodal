@@ -85,12 +85,14 @@ def get_attention_hook(name, attention_dict):
 
 
 # Function to plot an attention map
-def plot_attention_map(attention, title):
-    plt.figure(figsize=(10, 8))
+def plot_attention_map(attention, title, save_path=None):
+    plt.figure(figsize=(10, 8), dpi=300)
     sns.heatmap(attention, annot=False, cmap='viridis')
     plt.title(title)
     plt.ylabel('Query Index')
     plt.xlabel('Key Index')
+    if save_path is not None:
+        plt.savefig(save_path)
     plt.show()
 
 
@@ -105,7 +107,7 @@ def plot_input(input, title="Input Features"):
     plt.show()
 
 
-def plot_input_with_attention(input, attention, title="Input Features"):
+def plot_input_with_attention(input, attention, title="Input Features", save_path=None):
     input = input.cpu().detach().numpy()
     attention = attention.cpu().detach().numpy()
 
@@ -142,6 +144,8 @@ def plot_input_with_attention(input, attention, title="Input Features"):
     cbar_ax_main.set_ylabel('Scale for Main Data')
 
     plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path)
     plt.show()
 
 class SaveOutput:
@@ -180,6 +184,7 @@ def attention_map_extraction(model, data_loader, device, modalities):
     sequences = data_loader.dataset.sequences
     fau_indices = sequences[list(sequences)[(batch_num-1) * batch_size + sample_num]]
     sequence_of_interest = data_loader.dataset.FAU_dataframe.iloc[fau_indices]
+    sequence_name = sequence_of_interest['file name'].values[0][:-7]
     print(sequence_of_interest)
 
     # Register hooks to capture the attention weights
@@ -207,10 +212,16 @@ def attention_map_extraction(model, data_loader, device, modalities):
 
     # Visualize the attention maps, loop through the keys in hook_handles or specify layer names
     for i, attention in enumerate(save_output.outputs):
-        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1} head 1")
-        plot_attention_map(attention[sample_num, 1].cpu().detach().numpy(), f"Attention Map {i + 1} head 2")
-        plot_input_with_attention(z1[sample_num], attention[sample_num, 0], title=f"Input Features z1 with Attention Map {i + 1} head 1")
-        plot_input_with_attention(z1[sample_num], attention[sample_num, 1], title=f"Input Features z1 with Attention Map {i + 1} head 2")
+        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1} head 1",
+                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_attention_map_{i + 1}_head_1.png")
+        plot_attention_map(attention[sample_num, 1].cpu().detach().numpy(), f"Attention Map {i + 1} head 2",
+                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_attention_map_{i + 1}_head_2.png")
+        plot_input_with_attention(z1[sample_num], attention[sample_num, 0],
+                                  title=f"Input Features z1 with Attention Map {i + 1} head 1",
+                                  save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_1.png")
+        plot_input_with_attention(z1[sample_num], attention[sample_num, 1],
+                                  title=f"Input Features z1 with Attention Map {i + 1} head 2",
+                                  save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_2.png")
     return
 
 
