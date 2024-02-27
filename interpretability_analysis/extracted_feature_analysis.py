@@ -100,7 +100,7 @@ if __name__ == '__main__':
     X_reduced = umap_model.fit_transform(X)
 
     # Plotting 2D UMAP projection results
-    plot_projection('3D UMAP projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced,
+    plot_projection('2D UMAP projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced,
                 '/home/meysam/Pictures/fau_depth_thermal_embeddings_UMAP.png', 'UMAP 1', 'UMAP 2')
 
     # Plot 3D UMAP projection results
@@ -133,5 +133,5 @@ if __name__ == '__main__':
     X_reduced_pca = pca_model.fit_transform(X)
 
     # Plotting PCA results
-    plot_projection('3D PCA projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced_pca,
+    plot_projection('2D PCA projection of the final embeddings (FAU, Depth, and Thermal)', y, X_reduced_pca,
                 '/home/meysam/Pictures/fau_depth_thermal_embeddings_PCA.png', 'PC1', 'PC2')
