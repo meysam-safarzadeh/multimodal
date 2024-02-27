@@ -175,6 +175,8 @@ def attention_map_extraction(model, data_loader, device, modalities):
     sample_num = 38
     batch_num = 6
     batch_size = 128
+    first_layer = 6 # first layer to start visualizing the attention maps from
+    num_heads = 16
 
     # Assuming the first batch in the loader for demonstration
     data = next(islice(data_loader, batch_num - 1, batch_num))
@@ -211,17 +213,16 @@ def attention_map_extraction(model, data_loader, device, modalities):
     plot_input(z1[sample_num], title="Input Features z1")
 
     # Visualize the attention maps, loop through the keys in hook_handles or specify layer names
-    for i, attention in enumerate(save_output.outputs):
-        plot_attention_map(attention[sample_num, 0].cpu().detach().numpy(), f"Attention Map {i + 1} head 1",
-                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_attention_map_{i + 1}_head_1.png")
-        plot_attention_map(attention[sample_num, 1].cpu().detach().numpy(), f"Attention Map {i + 1} head 2",
-                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_attention_map_{i + 1}_head_2.png")
-        plot_input_with_attention(z1[sample_num], attention[sample_num, 0],
-                                  title=f"Input Features z1 with Attention Map {i + 1} head 1",
-                                  save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_1.png")
-        plot_input_with_attention(z1[sample_num], attention[sample_num, 1],
-                                  title=f"Input Features z1 with Attention Map {i + 1} head 2",
-                                  save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_2.png")
+    for i, attention in enumerate(save_output.outputs[first_layer:], start=first_layer):
+        for j in range(num_heads):
+            plot_attention_map(attention[sample_num, j].cpu().detach().numpy(), f"Attention Map {i + 1} head {j + 1}",
+                               save_path=f"interpretability_analysis/attention_maps/{sequence_name}_attention_map_{i + 1}_head_{j + 1}.png")
+        # plot_input_with_attention(z1[sample_num], attention[sample_num, 0],
+        #                           title=f"Input Features z1 with Attention Map {i + 1} head 1",
+        #                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_1.png")
+        # plot_input_with_attention(z1[sample_num], attention[sample_num, 1],
+        #                           title=f"Input Features z1 with Attention Map {i + 1} head 2",
+        #                           save_path=f"interpretability_analysis/attention_maps/{sequence_name}_input_with_attention_{i + 1}_head_2.png")
     return
 
 
