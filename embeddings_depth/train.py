@@ -4,7 +4,7 @@ import torch
 from torch import optim
 from model import Autoencoder
 import torch.nn as nn
-from utils import MyAutoencoderDataset, save_images
+from utils import AutoencoderDataset, save_images
 from torch.utils.data import DataLoader
 
 
@@ -56,7 +56,7 @@ def main(use_batch_norm=True, device="cuda:1", plot_loss=False, num_epochs=10, s
     model = Autoencoder(use_batch_norm=use_batch_norm).to(device)
 
     # Other setup (data loader, loss function, optimizer) remains the same
-    train_set = MyAutoencoderDataset(directory=im_directory, target_size=(85, 85))
+    train_set = AutoencoderDataset(directory=im_directory, target_size=(85, 85))
     train_loader = DataLoader(train_set, batch_size, shuffle=True, drop_last=True)
 
     # the loss function and optimizer
