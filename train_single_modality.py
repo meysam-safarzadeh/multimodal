@@ -166,7 +166,7 @@ def test(test_loader, model, criterion, device, verbose, modality):
 
 def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_decay, downsample_method, mode,
          fusion_layers, n_bottlenecks, batch_size, num_epochs, verbose, fold, device, save_model, max_seq_len,
-         classification_head, plot, head_layer_sizes, output_dim, modality):
+         classification_head, plot, head_layer_sizes, output_dim, modality, sub_independent, n_fau_features):
     """
         Main function for training an Attention-based Bottleneck Fusion model.
 
@@ -193,9 +193,12 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
         - head_layer_sizes: List of hidden layer sizes for the classification head. 3 layers are used by default.
         - output_dim: Output of the transformer will be downsampled to this dimension before the classification head.
         - modality: Modality to use for training and validation. 'fau' or 'thermal' or 'depth'
+        - sub_independent: Whether to train each subject independently or not. If True, the model will be trained
+        for each subject independently. If False, the model will be trained on all subjects combined.
+        - n_fau_features: Number of FAU features to use. If 22, all features will be used.
     """
     # Initialize parameters and data
-    input_dim_dic = {'fau': 22, 'thermal': 512, 'depth': 128}
+    input_dim_dic = {'fau': n_fau_features, 'thermal': 512, 'depth': 128}
     input_dim = input_dim_dic[modality]
     num_classes = 5
 
@@ -209,7 +212,9 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
     # Create the DataLoader
     train_dataset, val_dataset, test_dataset = create_dataset(fau_file_path, thermal_file_path, split_file_path,
                                                               fold, batch_size=batch_size, max_seq_len=max_seq_len,
-                                                              depth_file_path=depth_file_path)
+                                                              depth_file_path=depth_file_path,
+                                                              sub_independent=sub_independent,
+                                                              n_fau_features=n_fau_features)
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
@@ -366,20 +371,21 @@ def ensemble_single_modalities(hidden_dim, num_heads, num_layers, learning_rate,
 
 
 if __name__ == '__main__':
-    # for i in range(5):
-    # _, _, _, _, best_val_acc = main(hidden_dim=92, num_heads=2, num_layers=2, learning_rate=0.00011,
-    #                                 dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
-    #                                 fusion_layers=None, n_bottlenecks=None, batch_size=256, num_epochs=200, verbose=True, fold=1,
-    #                                 device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
-    #                                 head_layer_sizes=[64, 128, 64], output_dim=22, modality='fau')
-    # print('Fold: {}, Best Validation Accuracy: {}'.format(i, best_val_acc))
+    for i in range(5):
+        _, _, _, _, best_val_acc = main(hidden_dim=92, num_heads=2, num_layers=2, learning_rate=0.00011,
+                                        dropout_rate=0.0, weight_decay=0.0, downsample_method='Linear', mode=None,
+                                        fusion_layers=None, n_bottlenecks=None, batch_size=256, num_epochs=200,
+                                        verbose=True, fold=i, device='cuda:0', save_model=True, max_seq_len=36,
+                                        classification_head=True, plot=True, head_layer_sizes=[64, 128, 64],
+                                        output_dim=22, modality='fau', sub_independent=False, n_fau_features=16)
+        print('Fold: {}, Best Validation Accuracy: {}'.format(i, best_val_acc))
 
 
-    ensemble_single_modalities(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
-                               dropout_rate=0.0, weight_decay=0.0, downsample_method=None, mode=None,
-                               fusion_layers=None, n_bottlenecks=None, batch_size=64, num_epochs=150, verbose=True, fold=1,
-                               device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
-                               head_layer_sizes=[352, 112, 48], output_dim=22, modality='depth')
+    # ensemble_single_modalities(hidden_dim=96, num_heads=2, num_layers=5, learning_rate=3e-4,
+    #                            dropout_rate=0.0, weight_decay=0.0, downsample_method=None, mode=None,
+    #                            fusion_layers=None, n_bottlenecks=None, batch_size=64, num_epochs=150, verbose=True, fold=1,
+    #                            device='cuda:1', save_model=True, max_seq_len=36, classification_head=True, plot=True,
+    #                            head_layer_sizes=[352, 112, 48], output_dim=22, modality='fau')
     # output_dim=22 for FAU
     # output_dim=32 for thermal
 

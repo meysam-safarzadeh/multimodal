@@ -7,7 +7,7 @@ from utils import under_sampling
 
 class MintPainDataset(Dataset):
     def __init__(self, fau_dataframe, thermal_file_path, fau_min_max_vals, thermal_min_max_vals, max_seq_len,
-                 depth_file_path, depth_min_max_vals):
+                 depth_file_path, depth_min_max_vals, n_fau_features):
         """
         Initialize the dataset with FAU FAU_dataframe and thermal embeddings.
 
@@ -41,6 +41,9 @@ class MintPainDataset(Dataset):
         self.thermal_min_vals, self.thermal_max_vals = thermal_min_max_vals
         self.depth_min_vals, self.depth_max_vals = depth_min_max_vals
 
+        # Number of FAU features
+        self.n_fau_features = n_fau_features
+
     def __len__(self):
         return len(self.sequences)
 
@@ -57,8 +60,7 @@ class MintPainDataset(Dataset):
         return fau_embeddings, thermal_embeddings, depth_embeddings, label
 
     def _get_fau_embeddings(self, data):
-        fau_features = 22
-        fau_embeddings = data.iloc[:, 1:fau_features+1].values
+        fau_embeddings = data.iloc[:, 1:self.n_fau_features+1].values
         # Apply min-max normalization and scale to -1 to 1
         fau_embeddings = 2 * ((fau_embeddings - self.fau_min_vals) / (self.fau_max_vals - self.fau_min_vals)) - 1
         fau_embeddings = self._pad_embeddings(fau_embeddings)
@@ -102,7 +104,7 @@ class MintPainDataset(Dataset):
 
 
 def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration, batch_size, max_seq_len,
-                   depth_file_path, sub_independent):
+                   depth_file_path, sub_independent, n_fau_features):
     """
     Create dataset for the FAU and thermal embeddings' dataset, split into train, validation, and test sets for
     the given iteration.
@@ -115,6 +117,7 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     batch_size (int, optional): Batch size for the DataLoader. Defaults to 64.
     max_seq_len (int): Maximum sequence length for the FAU embeddings. Defaults to 100.
     depth_file_path (str): Path to the NPZ file containing depth embeddings.
+    sub_independent (bool): Whether to split the dataset into train and validation sets separately for each subject.
 
     Returns:
     tuple: A tuple containing the train, validation, and test Datasets.
@@ -139,23 +142,27 @@ def create_dataset(fau_file_path, thermal_file_path, split_file_path, iteration,
     # Get min and max values for each modality
     fau_min_max_vals, thermal_min_max_vals , depth_min_max_vals = get_min_max_for_each_modality(train_df,
                                                                                                 thermal_file_path,
-                                                                                                depth_file_path)
+                                                                                                depth_file_path,
+                                                                                                n_fau_features)
 
     # Under-sample the training set to balance the classes
     train_df_undersampled = under_sampling(train_df)
 
     # Create subsets
     train_dataset = MintPainDataset(train_df_undersampled, thermal_file_path, fau_min_max_vals,
-                                    thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals)
+                                    thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals,
+                                    n_fau_features)
     val_dataset = MintPainDataset(val_df, thermal_file_path, fau_min_max_vals,
-                                  thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals)
+                                  thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals,
+                                  n_fau_features)
     test_dataset = MintPainDataset(test_df, thermal_file_path, fau_min_max_vals,
-                                   thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals)
+                                   thermal_min_max_vals, max_seq_len, depth_file_path, depth_min_max_vals,
+                                   n_fau_features)
 
     return train_dataset, val_dataset, test_dataset
 
 
-def get_min_max_for_each_modality(train_df, thermal_file_path, depth_file_path):
+def get_min_max_for_each_modality(train_df, thermal_file_path, depth_file_path, n_fau_features):
     """
     Extract corresponding thermal samples based on 'file name' and calculate min-max for each modality.
 
@@ -179,9 +186,9 @@ def get_min_max_for_each_modality(train_df, thermal_file_path, depth_file_path):
     # Extract corresponding depth samples
     depth_samples = np.array([depth_embeddings_dict[fname] for fname in train_df['file name'] if fname in depth_embeddings_dict])
 
-    # Assuming you want to include columns from 1 to 23 (excluding the first column at index 0)
-    fau_min_vals = train_df.iloc[:, 1:23].min()
-    fau_max_vals = train_df.iloc[:, 1:23].max()
+    # Assuming you want to include columns from 1 to n_fau_features+1 (excluding the first column at index 0)
+    fau_min_vals = train_df.iloc[:, 1:n_fau_features+1].min()
+    fau_max_vals = train_df.iloc[:, 1:n_fau_features+1].max()
     # Convert to numpy arrays and reshape to (1, 22)
     fau_min_vals = np.array(fau_min_vals).reshape(1, -1)
     fau_max_vals = np.array(fau_max_vals).reshape(1, -1)
