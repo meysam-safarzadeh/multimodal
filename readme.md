@@ -48,14 +48,31 @@ Pain intensity prediction is a critical task that requires robust feature extrac
 ### Multi-Modality Training
 To train the model with all modalities, run:
 ```bash
-python train.py --config config.json
+python train.py
 ```
-Example parameters in `config.json` include:
-- `hidden_dim`: Size of hidden layers.
-- `num_heads`: Number of attention heads.
-- `num_layers`: Transformer layers.
-- `learning_rate`: Learning rate for optimization.
-- `dropout_rate`: Dropout to prevent overfitting.
+Example parameters in `main` def of train.py include:
+- `hidden_dim`: List of hidden dimensions for each modality and after fusion.
+- `num_heads`: Number of attention heads for each modality and after fusion.
+- `num_layers`: Number of transformer encoder layers for each modality.
+- `learning_rate`: Learning rate for the optimizer.
+- `dropout_rate`: Dropout rate used in the model.
+- `weight_decay`: Weight decay factor for the optimizer.
+- `downsample_method`: Method for downsampling (e.g., 'Linear', 'MaxPool').
+- `mode`: Mode of operation for the final classification layer ('concat' or 'separate').
+- `fusion_layers`: Number of layers after modality fusion.
+- `n_bottlenecks`: Number of bottleneck tokens in the model.
+- `batch_size`: Batch size for training and validation.
+- `num_epochs`: Number of epochs for training.
+- `verbose`: Verbosity mode.
+- `fold`: Fold number for cross-validation.
+- `device`: Device to use for training and validation.
+- `save_model`: Whether to save the model or not.
+- `max_seq_len`: Maximum sequence length for the input sequences.
+- `classification_head`: Whether to use a classification head or not.
+- `plot`: Whether to plot the loss and accuracy curves or not.
+- `head_layer_sizes`: List of hidden layer sizes for the classification head.
+- `output_dim`: Output dimension before the classification head.
+- `modality`: Modality to use for training and validation ('fau', 'thermal', or 'depth').
 
 ### Single-Modality Training
 For training on a single modality:
@@ -83,5 +100,3 @@ We welcome contributions! Please fork this repository and submit a pull request 
 ## License
 This project is licensed under the [MIT License](LICENSE).
 ```
-
-You can copy and save this as `README.md` in your project repository. Let me know if further edits are needed!
