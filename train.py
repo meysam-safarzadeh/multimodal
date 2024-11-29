@@ -253,13 +253,11 @@ def main(hidden_dim, num_heads, num_layers, learning_rate, dropout_rate, weight_
 
 
 if __name__ == '__main__':
-    for i in range(8):
-        _, _, _, _, _ = main(hidden_dim=[320, 768, 640, 352], num_heads=[64, 2, 64, 4], num_layers=[2, 3, 1],
-                             learning_rate=0.0001678,
-                             dropout_rate=0.1, weight_decay=0.01, downsample_method='Linear', mode='separate',
-                             fusion_layers=2, n_bottlenecks=4, batch_size=256, num_epochs=150, verbose=True, fold=0,
-                             device='cuda:0', save_model=False, max_seq_len=44, classification_head=True, plot=True,
-                             head_layer_sizes=[64, 96, 64], modalities=['depth', 'fau', 'thermal'], fusion_dim=16,
-                             sub_independent=True)
-    # 5-fold cross val result: 29.03 + 31.02 + 27.5 + 27.82 + 27.97 = 143.34 / 5 = 28.668
-    # 5-fold cross val result: 27.35 + 25.98 + 24.51 + 24.99 + 31.24 = 133.07 / 5 = 26.614
+    for i in range(1):
+        _, _, _, _, _ = main(hidden_dim=[320, 768, 640, 352], num_heads=[2, 4, 64, 16], num_layers=[2, 3, 1],
+                             learning_rate=0.0004,
+                             dropout_rate=0.03, weight_decay=0.0008, downsample_method='Linear', mode='separate',
+                             fusion_layers=7, n_bottlenecks=5, batch_size=256, num_epochs=200, verbose=True, fold=1,
+                             device='cuda:0', save_model=True, max_seq_len=36, classification_head=True, plot=True,
+                             head_layer_sizes=[64, 32, 16], modalities=['fau', 'depth', 'thermal'], fusion_dim=64,
+                             sub_independent=False)
